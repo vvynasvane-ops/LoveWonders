@@ -4,7 +4,7 @@ import { initTheme } from "./theme.js";
 import { renderNav } from "./nav.js";
 import { escapeHtml, placeholderPhoto, loaderHtml, loaderTrackHtml } from "./common.js";
 import { startPresence } from "./presence.js";
-import { initNotifications } from "./notifications.js";
+import { initNotifications, getCachedSenderProfile } from "./notifications.js";
 
 initTheme();
 renderNav("messages");
@@ -125,13 +125,47 @@ function openConversation(tid, otherUid) {
   }
 }
 
+/**
+ * Notification taps arrive as messages.html?uid=<sender>&tid=<threadId>. Opening
+ * the right conversation used to mean waiting on the whole pipeline — auth,
+ * this member's own profile fetch, the notifications watcher, then the full
+ * thread list plus a getDoc for every single thread's other person — before
+ * the target row even existed to click. Instead, the moment auth resolves we
+ * open that one conversation directly: first with whatever sender name/photo
+ * the notification already cached (instant, no network wait), then again
+ * with the live Firestore doc once it lands, in case the cache was stale or
+ * this is the first time we're seeing that thread. The rest of the inbox
+ * keeps loading in the background exactly as before.
+ */
+function openFromDeepLink(otherUid, tid) {
+  const cached = getCachedSenderProfile(me.uid, otherUid);
+  if (cached) userCache.set(otherUid, { uid: otherUid, ...cached });
+  openConversation(tid, otherUid);
+
+  getDoc(doc(db, "users", otherUid)).then(snap => {
+    userCache.set(otherUid, { uid: otherUid, ...(snap.data() || {}) });
+    if (activeTid === tid) openConversation(tid, otherUid);
+  }).catch(() => {});
+}
+
 async function load() {
   convoList.innerHTML = loaderHtml("Loading conversations");
   me = await requireAuth();
+  // Reveal the page as soon as auth resolves, instead of holding the
+  // full-screen loader up through the own-profile fetch below too — every
+  // section past this point (inbox list, chat panel) already has its own
+  // in-place loading state, so there's no reason to keep the whole page
+  // hidden behind an opaque overlay while those finish.
+  document.querySelector(".loader-page")?.remove();
   startPresence(me.uid);
+
+  const params = new URLSearchParams(window.location.search);
+  const deepUid = params.get("uid");
+  const deepTid = params.get("tid");
+  if (deepUid && deepTid) openFromDeepLink(deepUid, deepTid);
+
   const meSnap = await getDoc(doc(db, "users", me.uid));
   initNotifications(me.uid, (meSnap.data() || {}).preferences);
-  document.querySelector(".loader-page")?.remove();
   listThreads(
     me.uid,
     list => {

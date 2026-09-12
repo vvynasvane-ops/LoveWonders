@@ -16,6 +16,7 @@
 
 import { db, collection, onSnapshot, query, where, doc, getDoc } from "./firebase-init.js";
 import { matchScore, hasPreferences } from "./recommend.js";
+import { setMessagesBadge } from "./nav.js";
 
 const SESSION_KEY = "lw-session-start";
 const SEEN_KEY = "lw-seen-new-users";
@@ -215,7 +216,21 @@ export function initNotifications(uid, myPrefs) {
 // Kept live for the same reason as watcherArmed above — only one listener
 // per tab, safe to call initNotifications() again mid-session.
 let msgWatcherArmed = false;
-const senderNameCache = new Map(); // uid -> name, so a busy conversation doesn't re-fetch it per message
+const senderProfileCache = new Map(); // uid -> {name, photoURL}, so a busy conversation doesn't re-fetch per message
+
+/**
+ * Looks up the sender info we already stashed on a past message notification
+ * for `otherUid`, if any — most recent first. Lets messages.html paint a
+ * conversation's header (name + photo) the instant a notification is tapped,
+ * instead of waiting on a fresh round-trip to Firestore before it can show
+ * anything. This is the same stale-while-revalidate idea chat apps use: show
+ * the cached sender right away, then quietly confirm/refresh from the network.
+ */
+export function getCachedSenderProfile(myUid, otherUid) {
+  const list = loadNotifs(myUid);
+  const hit = list.find(n => n.data?.uid === otherUid);
+  return hit ? { name: hit.data.name, photoURL: hit.data.photoURL } : null;
+}
 
 /**
  * Live-watches this member's message threads for the rest of this tab's session
@@ -246,6 +261,20 @@ export function watchForNewResponses(uid) {
 
   const q = query(collection(db, "threads"), where("participants", "array-contains", uid));
   onSnapshot(q, (snap) => {
+    // Always-on unread badge for the Messages nav item (see nav.js). Recomputed
+    // from the full snapshot — not just this batch's changes — so it stays
+    // correct no matter which thread changed, and pings live on every page
+    // that has the nav mounted, not just messages.html.
+    let unreadCount = 0;
+    snap.forEach((docSnap) => {
+      const t = docSnap.data();
+      if (!t.lastAt || t.lastFrom === uid) return;
+      const lastAtMs = t.lastAt?.toMillis ? t.lastAt.toMillis() : 0;
+      const readMs = t.lastRead?.[uid]?.toMillis ? t.lastRead[uid].toMillis() : 0;
+      if (!readMs || readMs < lastAtMs) unreadCount++;
+    });
+    setMessagesBadge(unreadCount);
+
     snap.docChanges().forEach((change) => {
       if (change.type === "removed") return;
       const data = change.doc.data();
@@ -265,8 +294,19 @@ export function watchForNewResponses(uid) {
       sessionStorage.setItem(SEEN_THREADS_KEY, JSON.stringify([...seen]));
 
       const otherUid = data.lastFrom;
-      const announce = (name) => {
-        addNotification(uid, { title: `${name} sent you a message`, icon: "&#128172;", href: "messages.html" });
+      const threadId = change.doc.id;
+      // Deep-link straight to this conversation (not just the inbox), and
+      // stash the sender's name + photo on the notification itself. Together
+      // these let a tap open the actual conversation with the sender's
+      // details already on screen — no second click to find the right row,
+      // and no waiting on a fresh Firestore round-trip before anything shows.
+      const announce = ({ name, photoURL }) => {
+        addNotification(uid, {
+          title: `${name} sent you a message`,
+          icon: "&#128172;",
+          href: `messages.html?uid=${encodeURIComponent(otherUid)}&tid=${encodeURIComponent(threadId)}`,
+          data: { uid: otherUid, name, photoURL: photoURL || "" }
+        });
         showToast(`New message from ${name}`, { type: "match", duration: 4400 });
         if ("Notification" in window && Notification.permission === "granted") {
           try {
@@ -278,14 +318,15 @@ export function watchForNewResponses(uid) {
         }
       };
 
-      if (senderNameCache.has(otherUid)) {
-        announce(senderNameCache.get(otherUid));
+      if (senderProfileCache.has(otherUid)) {
+        announce(senderProfileCache.get(otherUid));
       } else {
         getDoc(doc(db, "users", otherUid)).then(userSnap => {
-          const name = userSnap.data()?.name || "Someone";
-          senderNameCache.set(otherUid, name);
-          announce(name);
-        }).catch(() => announce("Someone"));
+          const u = userSnap.data() || {};
+          const profile = { name: u.name || "Someone", photoURL: u.photoURL || "" };
+          senderProfileCache.set(otherUid, profile);
+          announce(profile);
+        }).catch(() => announce({ name: "Someone", photoURL: "" }));
       }
     });
   });

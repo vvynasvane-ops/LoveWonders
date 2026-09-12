@@ -780,6 +780,19 @@ textarea{ resize: vertical; min-height: 90px; }
 .appnav-item:hover{ color: var(--text); }
 .appnav-item.active{ background: var(--bg-inset); color: var(--accent); box-shadow: 0 0 0 1px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .3); }
 .appnav-icon{ font-size:16px; line-height:1; }
+.appnav-icon-wrap{ position:relative; display:inline-flex; }
+/* Live "new messages" ping on the Messages tab — driven by a real-time
+   Firestore listener (see notifications.js), so it's never a one-time check:
+   it updates the instant a new message lands, from whichever page is open. */
+.appnav-badge{
+  position:absolute; top:-6px; right:-8px;
+  min-width:15px; height:15px; padding:0 3px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, var(--accent), var(--teal));
+  color:#0a0620; font-size:9px; font-weight:700; line-height:15px; text-align:center;
+  box-shadow: 0 0 0 2px var(--bg-raised);
+  animation: badge-pulse 2s ease infinite;
+}
 .appnav-label{ display:inline; }
 
 body{ padding-bottom: 0; }
