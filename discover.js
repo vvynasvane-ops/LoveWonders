@@ -376,8 +376,12 @@ async function sendAppreciation(uid, theirName, text, btn, picker) {
   btn.disabled = true;
   btn.textContent = "Sent ✓";
   try {
-    await updateDoc(doc(db, "users", uid), {
-      appreciationsReceived: arrayUnion({ fromUid: me.uid, fromName: myData.name || "Someone", text, at: Date.now() })
+    // A separate collection, not a field on the recipient's own user doc —
+    // like "reports", the sender creates a doc about someone else rather
+    // than writing onto their profile directly, which Firestore rules
+    // correctly refuse to allow for any client.
+    await addDoc(collection(db, "appreciations"), {
+      toUid: uid, fromUid: me.uid, fromName: myData.name || "Someone", text, createdAt: serverTimestamp()
     });
     showToast(`Sent — ${theirName || "they"} will see it on their profile.`, { type: "success" });
   } catch (err) {
