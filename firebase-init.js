@@ -5,7 +5,7 @@ import {
   signOut, updateProfile, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs,
+  initializeFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs,
   query, orderBy, limit, addDoc, onSnapshot, serverTimestamp, where,
   arrayUnion, arrayRemove, increment
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -13,7 +13,13 @@ import { firebaseConfig } from "./firebase-config.js";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Firestore's default transport is a streaming connection (WebChannel) that
+// some networks, VPNs, and antivirus/firewall software reset mid-stream —
+// that's what an "ERR_CONNECTION_RESET" on the .../Write/channel endpoint
+// is. experimentalAutoDetectLongPolling makes the SDK detect that and fall
+// back to plain long-polling automatically, without forcing the slower
+// transport on connections that don't need it.
+export const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 export const googleProvider = new GoogleAuthProvider();
 
 export {
