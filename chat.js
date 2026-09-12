@@ -50,6 +50,7 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
           <div class="chat-header-name">${escapeHtml(otherName)}</div>
           <div class="chat-header-status"><span class="status-dot"></span>Active on Love Wonders</div>
         </div>
+        <button id="chat-clear-btn" class="btn ghost small chat-clear-btn" type="button" title="Clear this conversation for you">Clear chat</button>
       </div>
       <div id="chat-log" class="chat-log"></div>
       <div id="chat-send-status" class="chat-send-status"></div>
@@ -120,16 +121,24 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
   }
 
   logEl.innerHTML = loaderHtml("Loading messages");
+  let latestDocs = [];
+  let myClearedAtMs = 0;
+  function renderMessages() {
+    const visible = myClearedAtMs
+      ? latestDocs.filter(m => (m.createdAt?.toMillis?.() || 0) > myClearedAtMs)
+      : latestDocs;
+    logEl.innerHTML = renderLog(visible, myUid, otherPhoto) || emptyState(otherName);
+    syncTypingIndicator();
+    logEl.scrollTop = logEl.scrollHeight;
+  }
   const q = query(collection(db, "threads", tid, "messages"), orderBy("createdAt", "asc"));
   unsubMessages = onSnapshot(
     q,
     snap => {
-      const docs = snap.docs.map(d => d.data());
-      logEl.innerHTML = renderLog(docs, myUid, otherPhoto) || emptyState(otherName);
-      syncTypingIndicator();
-      logEl.scrollTop = logEl.scrollHeight;
+      latestDocs = snap.docs.map(d => d.data());
+      renderMessages();
       // Keep the thread's read marker fresh while the panel stays open.
-      if (docs.length) setDoc(doc(db, "threads", tid), { [`lastRead.${myUid}`]: serverTimestamp() }, { merge: true }).catch(() => {});
+      if (latestDocs.length) setDoc(doc(db, "threads", tid), { [`lastRead.${myUid}`]: serverTimestamp() }, { merge: true }).catch(() => {});
     },
     err => {
       // A failed listener (offline, a missing index, rules) used to leave the
@@ -145,7 +154,18 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
     const data = snap.data();
     const theirTypingAt = data?.typing?.[otherUid]?.toMillis?.();
     theirTypingUntil = theirTypingAt ? theirTypingAt + 4000 : 0;
-    syncTypingIndicator();
+    // `clearedAt.{myUid}` — set by the Clear chat button below — hides any
+    // message sent before that point, for me only; the other person's view
+    // of the same thread is untouched. Re-render on every thread-doc update
+    // (not just when I click Clear) so this stays correct if the clear was
+    // triggered from another open tab.
+    const clearedAt = data?.clearedAt?.[myUid]?.toMillis?.();
+    if (clearedAt !== myClearedAtMs) {
+      myClearedAtMs = clearedAt || 0;
+      renderMessages();
+    } else {
+      syncTypingIndicator();
+    }
   }, err => console.error("Typing indicator listener failed:", err));
 
   // Ticks the indicator's expiry independently of Firestore events, so it
@@ -182,6 +202,18 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
   sendBtn.addEventListener("click", send);
   input.addEventListener("keydown", e => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+
+  mountEl.querySelector("#chat-clear-btn").addEventListener("click", async () => {
+    if (!confirm(`Clear this conversation with ${otherName}? It'll disappear from your view — ${otherName} will still see their copy.`)) return;
+    try {
+      // Same shape as `lastRead.${myUid}` above — a per-user map field on the
+      // thread doc, so this write only ever touches my own key in it and the
+      // other participant's messages are untouched on their side.
+      await setDoc(doc(db, "threads", tid), { [`clearedAt.${myUid}`]: serverTimestamp() }, { merge: true });
+    } catch (err) {
+      console.error("Clear chat failed:", err);
+    }
   });
 }
 

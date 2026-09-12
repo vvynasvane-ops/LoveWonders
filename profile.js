@@ -30,6 +30,7 @@ const logoutBtn = document.querySelector("#logout-btn");
 const appreciationCard = document.querySelector("#appreciation-card");
 const appreciationSummary = document.querySelector("#appreciation-summary");
 const appreciationList = document.querySelector("#appreciation-list");
+const clearAppreciationsBtn = document.querySelector("#clear-appreciations");
 
 const ageEl = document.querySelector("#age");
 const genderEl = document.querySelector("#gender");
@@ -141,7 +142,7 @@ async function load() {
   prefNationality.value = prefs.nationality || "";
 
   initNotifications(user.uid, currentPrefs);
-  loadAppreciations(user.uid);
+  loadAppreciations(user.uid, data.appreciationsClearedAt || 0);
 
   // We can decrypt our own private payload because we, the owner, always know our own code.
   if (data.privatePayload) {
@@ -156,10 +157,17 @@ async function load() {
  * button) from the separate `appreciations` collection — not a field on this
  * user's own doc, since Firestore rules correctly don't let another member
  * write onto it directly. */
-async function loadAppreciations(uid) {
+/** Fetches this member's received appreciations (see discover.js's Appreciate
+ * button) from the separate `appreciations` collection — not a field on this
+ * user's own doc, since Firestore rules correctly don't let another member
+ * write onto it directly. `clearedAt` (my own doc's own field, so I can write
+ * it myself) hides anything sent before the last time I hit "Clear all" —
+ * the underlying docs stay put, only my own view of them changes. */
+async function loadAppreciations(uid, clearedAt) {
   try {
     const snap = await getDocs(query(collection(db, "appreciations"), where("toUid", "==", uid)));
-    const list = snap.docs.map(d => d.data());
+    let list = snap.docs.map(d => d.data());
+    if (clearedAt) list = list.filter(a => (a.createdAt?.toMillis?.() || 0) > clearedAt);
     list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
     renderAppreciations(list);
   } catch (err) {
@@ -178,6 +186,22 @@ function renderAppreciations(list) {
       <div>${escapeHtml(a.text || "")}</div>
     </div>`).join("");
 }
+
+clearAppreciationsBtn.addEventListener("click", async () => {
+  if (!confirm("Clear all appreciations from your profile? This only clears your view — it can't be undone.")) return;
+  clearAppreciationsBtn.disabled = true;
+  try {
+    const clearedAt = Date.now();
+    await updateDoc(userRef, { appreciationsClearedAt: clearedAt });
+    renderAppreciations([]);
+    showToast("Cleared.", { type: "success" });
+  } catch (err) {
+    console.error("Clear appreciations failed:", err);
+    showToast("Couldn't clear those — try again.", { type: "error" });
+  } finally {
+    clearAppreciationsBtn.disabled = false;
+  }
+});
 
 function placeholder() {
   return "data:image/svg+xml;utf8," + encodeURIComponent(
