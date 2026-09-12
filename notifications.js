@@ -14,11 +14,13 @@
 //      against the signed-in member's taste preferences.
 // ============================================================
 
-import { db, collection, onSnapshot, query } from "./firebase-init.js";
+import { db, collection, onSnapshot, query, where, doc, getDoc } from "./firebase-init.js";
 import { matchScore, hasPreferences } from "./recommend.js";
 
 const SESSION_KEY = "lw-session-start";
 const SEEN_KEY = "lw-seen-new-users";
+const MSG_SESSION_KEY = "lw-msg-session-start";
+const SEEN_THREADS_KEY = "lw-seen-thread-replies";
 
 let toastRoot = null;
 function ensureToastRoot() {
@@ -105,7 +107,7 @@ export function renderBell(uid) {
               <span class="notif-item-title" data-title></span>
               <span class="notif-item-time">${timeAgo(n.at)}</span>
             </span>
-          </a>`).join("") : `<p class="notif-empty">Nothing yet — new taste matches will show up here.</p>`}
+          </a>`).join("") : `<p class="notif-empty">Nothing yet — new messages and taste matches will show up here.</p>`}
       </div>
     </div>`;
 
@@ -207,4 +209,84 @@ export function watchForTasteMatches(uid, myPrefs) {
 export function initNotifications(uid, myPrefs) {
   renderBell(uid);
   watchForTasteMatches(uid, myPrefs);
+  watchForNewResponses(uid);
+}
+
+// Kept live for the same reason as watcherArmed above — only one listener
+// per tab, safe to call initNotifications() again mid-session.
+let msgWatcherArmed = false;
+const senderNameCache = new Map(); // uid -> name, so a busy conversation doesn't re-fetch it per message
+
+/**
+ * Live-watches this member's message threads for the rest of this tab's session
+ * and raises a notification (in-app bell + toast, plus a real browser
+ * Notification if permitted) the moment someone "reaches out" — whether
+ * that's the *first* message in a brand-new thread they started, or a
+ * *reply* back after this member messaged them first. Either way, what
+ * matters is: the latest message in the thread is from the other person,
+ * and it's new since this tab opened. Points at messages.html, where the
+ * inbox's "New" filter (see messages.js) lists exactly these threads.
+ */
+export function watchForNewResponses(uid) {
+  if (msgWatcherArmed) return;
+  msgWatcherArmed = true;
+
+  if (!sessionStorage.getItem(MSG_SESSION_KEY)) sessionStorage.setItem(MSG_SESSION_KEY, String(Date.now()));
+  const sessionStart = Number(sessionStorage.getItem(MSG_SESSION_KEY));
+
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+
+  // threadId -> lastAt (ms) we've already notified for, so a thread's other
+  // unrelated field changes (e.g. lastRead ticking while the chat is open)
+  // don't re-fire a notification for the same incoming message.
+  let seen;
+  try { seen = new Map(JSON.parse(sessionStorage.getItem(SEEN_THREADS_KEY)) || []); } catch { seen = new Map(); }
+
+  const q = query(collection(db, "threads"), where("participants", "array-contains", uid));
+  onSnapshot(q, (snap) => {
+    snap.docChanges().forEach((change) => {
+      if (change.type === "removed") return;
+      const data = change.doc.data();
+      // Only their incoming messages count as "reaching out" — not our own sends,
+      // and not a thread that only just got created with no message yet.
+      if (!data.lastFrom || data.lastFrom === uid) return;
+
+      const lastAtMs = data.lastAt?.toMillis ? data.lastAt.toMillis() : 0;
+      // Firestore replays every existing doc as an "added" change on first load —
+      // only react to messages that actually landed after this tab session began,
+      // same guard as watchForTasteMatches uses for new signups.
+      if (!lastAtMs || lastAtMs < sessionStart - 2 * 60 * 1000) return;
+
+      const already = seen.get(change.doc.id);
+      if (already && already >= lastAtMs) return;
+      seen.set(change.doc.id, lastAtMs);
+      sessionStorage.setItem(SEEN_THREADS_KEY, JSON.stringify([...seen]));
+
+      const otherUid = data.lastFrom;
+      const announce = (name) => {
+        addNotification(uid, { title: `${name} sent you a message`, icon: "&#128172;", href: "messages.html" });
+        showToast(`New message from ${name}`, { type: "match", duration: 4400 });
+        if ("Notification" in window && Notification.permission === "granted") {
+          try {
+            new Notification("Love Wonders — new message", {
+              body: `${name} sent you a message.`,
+              icon: "favicon.jpg"
+            });
+          } catch { /* some browsers restrict this — the in-app toast/bell still cover it */ }
+        }
+      };
+
+      if (senderNameCache.has(otherUid)) {
+        announce(senderNameCache.get(otherUid));
+      } else {
+        getDoc(doc(db, "users", otherUid)).then(userSnap => {
+          const name = userSnap.data()?.name || "Someone";
+          senderNameCache.set(otherUid, name);
+          announce(name);
+        }).catch(() => announce("Someone"));
+      }
+    });
+  });
 }

@@ -36,10 +36,19 @@
       <div id="inbox-panel" class="inbox-panel">
         <div class="inbox-search">
           <input id="inbox-search-input" type="text" placeholder="Search conversations…">
+          <div class="inbox-filters">
+            <button type="button" class="inbox-filter-tab active" data-filter="all">All</button>
+            <button type="button" class="inbox-filter-tab" data-filter="new">
+              New responders<span id="new-count-badge" class="filter-count" style="display:none;"></span>
+            </button>
+          </div>
         </div>
         <div id="convo-list"></div>
         <p id="no-convos" class="muted" style="display:none; padding:18px; font-size:13px;">
           No conversations yet — head to <a href="discover.html">Discover</a> and say hello.
+        </p>
+        <p id="no-new-convos" class="muted" style="display:none; padding:18px; font-size:13px;">
+          No new responders right now — anyone who texts you back or reaches out first will show up here.
         </p>
       </div>
 

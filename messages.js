@@ -12,7 +12,10 @@ document.body.insertAdjacentHTML("beforeend", loaderTrackHtml("Loading Messages"
 
 const convoList = document.querySelector("#convo-list");
 const noConvos = document.querySelector("#no-convos");
+const noNewConvos = document.querySelector("#no-new-convos");
 const searchInput = document.querySelector("#inbox-search-input");
+const filterTabs = document.querySelectorAll(".inbox-filter-tab");
+const newCountBadge = document.querySelector("#new-count-badge");
 const chatPanelWrap = document.querySelector("#chat-panel-wrap");
 const chatPlaceholder = document.querySelector("#chat-placeholder");
 const chatMount = document.querySelector("#chat-mount");
@@ -23,6 +26,7 @@ let me;
 const userCache = new Map(); // uid -> {name, photoURL}
 let threads = [];
 let activeTid = null;
+let activeFilter = "all"; // "all" | "new"
 
 async function otherUserOf(t) {
   const otherUid = t.participants.find(u => u !== me.uid);
@@ -54,16 +58,27 @@ function isUnread(t) {
 async function render() {
   const term = searchInput.value.trim().toLowerCase();
   const rows = await Promise.all(threads.map(async t => ({ t, other: await otherUserOf(t) })));
-  const visible = rows.filter(({ other }) => !term || (other.name || "").toLowerCase().includes(term));
+
+  // A "new responder" is anyone whose latest message in the thread is theirs
+  // (not ours) and we haven't read it yet — covers both someone texting us
+  // for the first time and someone texting back after we messaged them first.
+  const newCount = rows.filter(({ t }) => isUnread(t)).length;
+  newCountBadge.textContent = String(newCount);
+  newCountBadge.style.display = newCount ? "inline-flex" : "none";
+
+  let visible = rows.filter(({ other }) => !term || (other.name || "").toLowerCase().includes(term));
+  if (activeFilter === "new") visible = visible.filter(({ t }) => isUnread(t));
 
   noConvos.style.display = threads.length ? "none" : "block";
+  noNewConvos.style.display = (activeFilter === "new" && threads.length && !visible.length) ? "block" : "none";
+
   convoList.innerHTML = visible.map(({ t, other }) => {
     const unread = isUnread(t);
     return `
       <div class="convo-row ${unread ? "unread" : ""} ${t.id === activeTid ? "active" : ""}" data-tid="${t.id}" data-uid="${other.uid}">
         <img src="${other.photoURL || placeholderPhoto()}" alt="">
         <div class="convo-text-col">
-          <div class="convo-name">${escapeHtml(other.name || "Member")}</div>
+          <div class="convo-name">${escapeHtml(other.name || "Member")} ${unread ? `<span class="convo-new-pill">New</span>` : ""}</div>
           <div class="convo-preview">${t.lastFrom === me.uid ? "You: " : ""}${escapeHtml(t.lastText || "")}</div>
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
@@ -77,6 +92,14 @@ async function render() {
     row.addEventListener("click", () => openConversation(row.dataset.tid, row.dataset.uid));
   });
 }
+
+filterTabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    activeFilter = tab.dataset.filter;
+    filterTabs.forEach(t => t.classList.toggle("active", t === tab));
+    render();
+  });
+});
 
 function openConversation(tid, otherUid) {
   activeTid = tid;
