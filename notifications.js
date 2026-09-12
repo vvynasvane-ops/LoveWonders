@@ -211,6 +211,46 @@ export function initNotifications(uid, myPrefs) {
   renderBell(uid);
   watchForTasteMatches(uid, myPrefs);
   watchForNewResponses(uid);
+  watchForAppreciations(uid);
+}
+
+// Kept live for the same reason as the other watchers above.
+let apprWatcherArmed = false;
+const APPR_SESSION_KEY = "lw-appr-session-start";
+const SEEN_APPR_KEY = "lw-seen-appreciations";
+
+/**
+ * Live-watches this member's own `appreciationsReceived` field (see
+ * discover.js's Appreciate button) and raises a notification the moment a
+ * new one lands, for the rest of this tab's session — same pattern as
+ * watchForNewResponses/watchForTasteMatches, just reading a single doc
+ * instead of a query.
+ */
+export function watchForAppreciations(uid) {
+  if (apprWatcherArmed) return;
+  apprWatcherArmed = true;
+
+  if (!sessionStorage.getItem(APPR_SESSION_KEY)) sessionStorage.setItem(APPR_SESSION_KEY, String(Date.now()));
+  const sessionStart = Number(sessionStorage.getItem(APPR_SESSION_KEY));
+
+  let seen;
+  try { seen = new Set(JSON.parse(sessionStorage.getItem(SEEN_APPR_KEY)) || []); } catch { seen = new Set(); }
+
+  onSnapshot(doc(db, "users", uid), (snap) => {
+    const list = (snap.data() || {}).appreciationsReceived || [];
+    list.forEach((a, i) => {
+      const key = `${a.at}-${i}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      sessionStorage.setItem(SEEN_APPR_KEY, JSON.stringify([...seen]));
+      // Firestore replays the whole doc as a first snapshot — only notify for
+      // ones that landed after this tab session began, same guard the other
+      // watchers use for their own "already existed before I opened this" case.
+      if (!a.at || a.at < sessionStart - 2 * 60 * 1000) return;
+      addNotification(uid, { title: `${a.fromName || "Someone"} appreciated you: "${a.text}"`, icon: "&#10024;", href: "profile.html" });
+      showToast(`\u2728 ${a.fromName || "Someone"} appreciated you`, { type: "match", duration: 4400 });
+    });
+  });
 }
 
 // Kept live for the same reason as watcherArmed above — only one listener

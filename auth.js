@@ -65,6 +65,7 @@ async function ensureProfileDoc(user, displayName) {
       likedBy: [],
       viewCount: 0,
       viewHistory: [],
+      appreciationsReceived: [],
       createdAt: Date.now()
     });
   }

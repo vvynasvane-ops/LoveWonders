@@ -515,6 +515,17 @@ textarea{ resize: vertical; min-height: 90px; }
 }
 .chip.gold{ border-color: var(--accent); color: var(--accent); }
 
+.appreciate-picker{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.appreciate-chip{ cursor:pointer; background: var(--bg-inset); border: 1px solid var(--line); transition: border-color .2s ease, color .2s ease; }
+.appreciate-chip:hover{ border-color: var(--accent); color: var(--accent); }
+
+.appreciation-list{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+.appreciation-item{
+  border:1px solid var(--line); border-radius: var(--radius-sm); padding:10px 14px;
+  background: var(--bg-inset); font-size:13px;
+}
+.appreciation-item .appreciation-from{ font-family: var(--font-display); font-size:11px; color: var(--teal-soft); letter-spacing:.03em; }
+
 .social-row{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
 .social-row a{
   border:1px solid var(--line);
@@ -962,6 +973,8 @@ body{ padding-bottom: 0; }
   transition: color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
 .legal-nav a:hover{ color: var(--text); border-color: var(--accent); transform: translateY(-1px); }
+.legal-nav a[data-home-link]{ color: var(--text); border-color: var(--teal-soft); text-transform:none; letter-spacing:normal; font-weight:500; }
+.legal-nav a[data-home-link]:hover{ border-color: var(--teal); }
 .legal-nav a.active{
   color:#0a0620; background: linear-gradient(135deg, var(--accent), var(--teal)); border-color:transparent;
   box-shadow: 0 6px 18px hsl(var(--gold-h) var(--gold-s) 45% / .35);

@@ -3,7 +3,7 @@ import { encryptWithCode, decryptWithCode, generateIdCode } from "./crypto-utils
 import { fileToCompressedDataURL } from "./img-utils.js";
 import { initTheme } from "./theme.js";
 import { renderNav } from "./nav.js";
-import { generateMemberNo, parseTags, loaderTrackHtml, loaderPhotoHtml } from "./common.js";
+import { generateMemberNo, parseTags, loaderTrackHtml, loaderPhotoHtml, escapeHtml } from "./common.js";
 import { startPresence } from "./presence.js";
 import { showToast, savedToast, initNotifications } from "./notifications.js";
 
@@ -27,6 +27,9 @@ const saveAboutBtn = document.querySelector("#save-about");
 const savePrivateBtn = document.querySelector("#save-private");
 const saveTasteBtn = document.querySelector("#save-taste");
 const logoutBtn = document.querySelector("#logout-btn");
+const appreciationCard = document.querySelector("#appreciation-card");
+const appreciationSummary = document.querySelector("#appreciation-summary");
+const appreciationList = document.querySelector("#appreciation-list");
 
 const ageEl = document.querySelector("#age");
 const genderEl = document.querySelector("#gender");
@@ -93,6 +96,7 @@ async function load() {
       ageConfirmed18: true,
       savedUsers: [], blockedUsers: [], likedBy: [],
       viewCount: 0, viewHistory: [],
+      appreciationsReceived: [],
       createdAt: Date.now()
     };
     await setDoc(userRef, data);
@@ -138,6 +142,7 @@ async function load() {
   prefNationality.value = prefs.nationality || "";
 
   initNotifications(user.uid, currentPrefs);
+  renderAppreciations(data.appreciationsReceived || []);
 
   // We can decrypt our own private payload because we, the owner, always know our own code.
   if (data.privatePayload) {
@@ -146,6 +151,18 @@ async function load() {
   socialInputs.forEach(inp => (inp.value = currentPrivate[inp.dataset.social] || ""));
   currentPrivate.extraPhotos = currentPrivate.extraPhotos || [];
   renderExtraPhotos();
+}
+
+/** Shows the compliments other members have sent from Discover's Appreciate button, most recent first. */
+function renderAppreciations(list) {
+  if (!list.length) { appreciationCard.style.display = "none"; return; }
+  appreciationCard.style.display = "block";
+  appreciationSummary.textContent = `${list.length} member${list.length === 1 ? "" : "s"} ${list.length === 1 ? "has" : "have"} appreciated you.`;
+  appreciationList.innerHTML = [...list].reverse().slice(0, 10).map(a => `
+    <div class="appreciation-item">
+      <div class="appreciation-from">${escapeHtml(a.fromName || "Someone")}</div>
+      <div>${escapeHtml(a.text || "")}</div>
+    </div>`).join("");
 }
 
 function placeholder() {

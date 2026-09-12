@@ -265,10 +265,12 @@ function openDetail(uid, p) {
         ${meta ? `<p class="muted" style="font-size:13px;">${escapeHtml(meta)}</p>` : ""}
         ${activity && p.showOnlineStatus !== false ? `<p class="muted" style="font-size:12px;">${escapeHtml(activity)}</p>` : ""}
         ${p.memberNo ? `<p class="muted" style="font-size:12px;">Member No. ${escapeHtml(p.memberNo)}</p>` : ""}
-        <div style="display:flex; gap:10px; align-items:center; margin-top:10px;">
+        <div style="display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap;">
           <button type="button" class="like-btn ${mutualLike || isLiked(uid) ? "liked" : ""}" id="detail-like-btn" data-like-uid="${uid}" title="${isLiked(uid) ? "Unlike" : "Like"}">${isLiked(uid) ? "&#10084;" : "&#9825;"}</button>
+          <button type="button" id="appreciate-btn" class="btn subtle small">&#10024; Appreciate</button>
           ${mutualLike ? `<span class="mutual-like-note">&#10084; It's a mutual like!</span>` : ""}
         </div>
+        <div id="appreciate-picker" class="appreciate-picker" hidden></div>
       </div>
       <div>
         <p>${escapeHtml(p.bio || "No bio yet.")}</p>
@@ -303,6 +305,19 @@ function openDetail(uid, p) {
   document.querySelector("#detail-like-btn").addEventListener("click", async () => {
     await toggleLike(uid);
     openDetail(uid, everyone.find(x => x.uid === uid) || p);
+  });
+
+  const appreciateBtn = document.querySelector("#appreciate-btn");
+  const appreciatePicker = document.querySelector("#appreciate-picker");
+  appreciateBtn.addEventListener("click", () => {
+    const opening = appreciatePicker.hidden;
+    appreciatePicker.hidden = !opening;
+    if (opening && !appreciatePicker.innerHTML) {
+      appreciatePicker.innerHTML = APPRECIATION_PRESETS.map(text => `<button type="button" class="chip appreciate-chip" data-text="${escapeHtml(text)}">${escapeHtml(text)}</button>`).join("");
+      appreciatePicker.querySelectorAll(".appreciate-chip").forEach(chip => {
+        chip.addEventListener("click", () => sendAppreciation(uid, p.name, chip.dataset.text, appreciateBtn, appreciatePicker));
+      });
+    }
   });
 
   document.querySelector("#unlock-btn").addEventListener("click", async () => {
@@ -345,6 +360,32 @@ function openDetail(uid, p) {
   });
 
   openChat(document.querySelector("#chat-mount"), me.uid, uid, { name: p.name, photoURL: p.photoURL });
+}
+
+// A quick, low-pressure way to make someone's day — separate from Liking
+// (which signals romantic interest) and from messaging (which asks for a
+// reply). Picking a preset just drops a small compliment on their profile;
+// no message thread is opened and no reply is expected.
+const APPRECIATION_PRESETS = [
+  "Great smile! ✨", "Love your energy!", "Really interesting profile!",
+  "Great taste!", "You seem genuine.", "Beautiful profile!"
+];
+
+async function sendAppreciation(uid, theirName, text, btn, picker) {
+  picker.hidden = true;
+  btn.disabled = true;
+  btn.textContent = "Sent ✓";
+  try {
+    await updateDoc(doc(db, "users", uid), {
+      appreciationsReceived: arrayUnion({ fromUid: me.uid, fromName: myData.name || "Someone", text, at: Date.now() })
+    });
+    showToast(`Sent — ${theirName || "they"} will see it on their profile.`, { type: "success" });
+  } catch (err) {
+    console.error("Appreciation failed:", err);
+    btn.disabled = false;
+    btn.textContent = "\u2728 Appreciate";
+    showToast("Couldn't send that — try again.", { type: "error" });
+  }
 }
 
 function intentLabel(v) {

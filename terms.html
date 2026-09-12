@@ -23,7 +23,7 @@
   </div>
   <div class="shell">
     <div class="topbar">
-      <a class="brand" href="index.html" style="cursor:pointer;">Love <em>Wonders</em></a>
+      <a class="brand" href="index.html" data-home-link style="cursor:pointer;">Love <em>Wonders</em></a>
       <div class="mode-toggle">
         <button data-mode-btn="dark">Dark</button>
         <button data-mode-btn="light">Light</button>
@@ -39,6 +39,7 @@
       </div>
 
       <nav class="legal-nav">
+        <a href="index.html" data-home-link data-home-label>← Back home</a>
         <a href="about.html">About</a>
         <a href="contact.html">Contact</a>
         <a href="terms.html" class="active">Terms</a>
@@ -127,7 +128,9 @@
 
   <script type="module">
     import { initTheme } from "./theme.js";
+    import { initLegalNav } from "./legal-nav.js";
     initTheme();
+    initLegalNav();
   </script>
 </body>
 </html>
