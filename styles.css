@@ -188,20 +188,47 @@ body{
   color: var(--text-muted);
 }
 
-/* ---- full-page splash loader: a stroke chasing an oval track — shown briefly
-   on protected pages while requireAuth() and the first data fetch resolve ---- */
+/* ---- full-page splash loader: five oozing dots streaming and merging into one
+   another — shown briefly on protected pages while requireAuth() and the first
+   data fetch resolve ---- */
 .loader-page{
   position:fixed; inset:0; z-index:500;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:16px; background: var(--bg);
 }
-.loader-track-bg{ stroke: var(--line); opacity:.6; }
-.loader-track-car{
-  stroke: var(--accent); stroke-dasharray:15,85; stroke-linecap:round;
-  filter: drop-shadow(0 0 5px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .6));
-  animation: track-travel 1.3s linear infinite;
+.loader-jelly{
+  --uib-size: 64px;
+  --uib-color: var(--accent);
+  --uib-speed: 2.6s;
+  --uib-dot-size: calc(var(--uib-size) * 0.23);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: var(--uib-size);
+  height: var(--uib-dot-size);
+  filter: url('#uib-jelly-ooze') drop-shadow(0 0 6px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .55));
 }
-@keyframes track-travel{ to{ stroke-dashoffset: -100; } }
+.jelly-dot{
+  position: absolute;
+  top: calc(50% - var(--uib-dot-size) / 2);
+  left: calc(0px - var(--uib-dot-size) / 2);
+  display: block;
+  height: var(--uib-dot-size);
+  width: var(--uib-dot-size);
+  border-radius: 50%;
+  background-color: var(--uib-color);
+  animation: jelly-stream var(--uib-speed) linear infinite both;
+}
+.jelly-dot:nth-child(2){ animation-delay: calc(var(--uib-speed) * -0.2); }
+.jelly-dot:nth-child(3){ animation-delay: calc(var(--uib-speed) * -0.4); }
+.jelly-dot:nth-child(4){ animation-delay: calc(var(--uib-speed) * -0.6); }
+.jelly-dot:nth-child(5){ animation-delay: calc(var(--uib-speed) * -0.8); }
+@keyframes jelly-stream{
+  0%, 100%{ transform: translateX(0) scale(0); }
+  50%{ transform: translateX(calc(var(--uib-size) * 0.5)) scale(1); }
+  99.999%{ transform: translateX(var(--uib-size)) scale(0); }
+}
 
 /* ---- small rounded-track loader: photo processing (upload/compress) ---- */
 .loader-photo{ display:inline-block; vertical-align:middle; }

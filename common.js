@@ -42,17 +42,41 @@ export function loaderHtml(label) {
     </div>`;
 }
 
-/** Full-page "racetrack" loader — a stroke chasing an oval loop. Used as a brief
- * splash while a protected page waits on requireAuth()/the initial data fetch. */
+// The jelly-dot loader's ooze effect needs one shared <filter> def in the DOM
+// (SVG filters can't be inlined via CSS). Injected lazily, once, the first
+// time loaderTrackHtml() actually runs — duplicate ids are harmless in SVG
+// `url(#id)` references (the first match wins), but there's no reason to
+// stamp out a copy on every page that uses the loader.
+let jellyFilterInjected = false;
+function ensureJellyFilter() {
+  if (jellyFilterInjected) return;
+  jellyFilterInjected = true;
+  document.body.insertAdjacentHTML("afterbegin", `
+    <svg width="0" height="0" style="position:absolute">
+      <defs>
+        <filter id="uib-jelly-ooze">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+          <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="ooze" />
+          <feBlend in="SourceGraphic" in2="ooze" />
+        </filter>
+      </defs>
+    </svg>`);
+}
+
+/** Full-page "jelly dots" loader — five oozing dots streaming across and merging
+ * into one another. Used as a brief splash while a protected page waits on
+ * requireAuth()/the initial data fetch. */
 export function loaderTrackHtml(label) {
+  ensureJellyFilter();
   return `
     <div class="loader-page">
-      <svg class="loader-track" viewBox="0 0 55 23.1" height="34" width="81" preserveAspectRatio="xMidYMid meet">
-        <path class="loader-track-bg" fill="none" stroke-width="4" pathLength="100"
-          d="M26.7,12.2c3.5,3.4,7.4,7.8,12.7,7.8c5.5,0,9.6-4.4,9.6-9.5C49,5,45.1,1,39.8,1c-5.5,0-9.5,4.2-13.1,7.8l-3.4,3.3c-3.6,3.6-7.6,7.8-13.1,7.8C4.9,20,1,16,1,10.5C1,5.4,5.1,1,10.6,1c5.3,0,9.2,4.5,12.7,7.8L26.7,12.2z"/>
-        <path class="loader-track-car" fill="none" stroke-width="4" pathLength="100"
-          d="M26.7,12.2c3.5,3.4,7.4,7.8,12.7,7.8c5.5,0,9.6-4.4,9.6-9.5C49,5,45.1,1,39.8,1c-5.5,0-9.5,4.2-13.1,7.8l-3.4,3.3c-3.6,3.6-7.6,7.8-13.1,7.8C4.9,20,1,16,1,10.5C1,5.4,5.1,1,10.6,1c5.3,0,9.2,4.5,12.7,7.8L26.7,12.2z"/>
-      </svg>
+      <div class="loader-jelly">
+        <div class="jelly-dot"></div>
+        <div class="jelly-dot"></div>
+        <div class="jelly-dot"></div>
+        <div class="jelly-dot"></div>
+        <div class="jelly-dot"></div>
+      </div>
       ${label ? `<div class="loader-label">${escapeHtml(label)}</div>` : ""}
     </div>`;
 }
