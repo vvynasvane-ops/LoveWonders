@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Theme — Love Wonders</title>
+<link rel="icon" type="image/jpeg" href="favicon.jpg">
+<link rel="apple-touch-icon" href="favicon.jpg">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#05040d">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-mode="dark">
+  <div class="bubble-field" aria-hidden="true">
+    <span style="left:8%; width:16px; height:16px; animation-duration:6.5s;"></span>
+    <span style="left:22%; width:10px; height:10px; animation-duration:8s; animation-delay:1s;"></span>
+    <span style="left:71%; width:14px; height:14px; animation-duration:7s; animation-delay:.4s;"></span>
+    <span style="left:88%; width:9px; height:9px; animation-duration:9s; animation-delay:2s;"></span>
+  </div>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">Love <em>Wonders</em></div>
+      <div class="topbar-actions">
+        <div id="notif-mount" class="notif-mount"></div>
+        <button id="logout-btn" class="btn ghost small" type="button">Log out</button>
+      </div>
+    </div>
+    <div id="nav-mount"></div>
+
+    <h1 style="margin-top:32px;">Theme</h1>
+    <p class="muted">Love Wonders ships as a plasma glow against deep space. Nudge the accent to make it yours.</p>
+
+    <div class="card" style="max-width:480px; margin-top:20px;">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div id="rgb-swatch" class="swatch"></div>
+        <div>
+          <div style="font-family:var(--font-display); font-size:16px;">Accent color</div>
+          <div class="muted" style="font-size:12px;">Drag to retune the gold.</div>
+        </div>
+      </div>
+
+      <label>Red</label>
+      <div class="rgb-row"><input id="rgb-r" type="range" min="0" max="255" value="177"><span id="rgb-r-val">177</span></div>
+      <label>Green</label>
+      <div class="rgb-row"><input id="rgb-g" type="range" min="0" max="255" value="81"><span id="rgb-g-val">81</span></div>
+      <label>Blue</label>
+      <div class="rgb-row"><input id="rgb-b" type="range" min="0" max="255" value="246"><span id="rgb-b-val">246</span></div>
+
+      <div class="gilt-rule"></div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <div style="font-family:var(--font-display); font-size:16px;">Mode</div>
+          <div class="muted" style="font-size:12px;">Applies instantly across the app.</div>
+        </div>
+        <div class="mode-toggle">
+          <button data-mode-btn="dark">Dark</button>
+          <button data-mode-btn="light">Light</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:480px; margin-top:18px;">
+      <h3 class="mt-0">Help &amp; safety</h3>
+      <p class="muted" style="font-size:13px;">
+        Verify someone with a short video call before sharing personal details or making plans to meet.
+        Keep early conversations on Love Wonders, and never send money to someone you haven't met in person.
+        If a member makes you uncomfortable, Block or Report them from their profile.
+      </p>
+      <a href="mailto:artyourtaste@gmail.com" class="btn subtle block" style="margin-top:6px;">Contact support</a>
+      <p class="field-hint center" style="margin-top:8px;">artyourtaste@gmail.com</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireAuth, auth, signOut, db, doc, getDoc } from "./firebase-init.js";
+    import { initTheme } from "./theme.js";
+    import { renderNav } from "./nav.js";
+    import { startPresence } from "./presence.js";
+    import { initNotifications } from "./notifications.js";
+    import { loaderTrackHtml } from "./common.js";
+    initTheme();
+    renderNav("settings");
+    document.body.insertAdjacentHTML("beforeend", loaderTrackHtml("Loading Theme"));
+    requireAuth().then(async user => {
+      startPresence(user.uid);
+      const snap = await getDoc(doc(db, "users", user.uid));
+      initNotifications(user.uid, (snap.data() || {}).preferences);
+      document.querySelector(".loader-page")?.remove();
+    }).catch(err => {
+      console.error("Settings load failed:", err);
+      document.querySelector(".loader-page")?.remove();
+    });
+    document.querySelector("#logout-btn").addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "index.html";
+    });
+    ["r","g","b"].forEach(c => {
+      const input = document.querySelector(`#rgb-${c}`);
+      const label = document.querySelector(`#rgb-${c}-val`);
+      input.addEventListener("input", () => (label.textContent = input.value));
+    });
+  </script>
+</body>
+</html>

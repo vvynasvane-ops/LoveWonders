@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your profile — Love Wonders</title>
+<link rel="icon" type="image/jpeg" href="favicon.jpg">
+<link rel="apple-touch-icon" href="favicon.jpg">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#05040d">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-mode="dark">
+  <div class="bubble-field" aria-hidden="true">
+    <span style="left:8%; width:16px; height:16px; animation-duration:6.5s;"></span>
+    <span style="left:22%; width:10px; height:10px; animation-duration:8s; animation-delay:1s;"></span>
+    <span style="left:71%; width:14px; height:14px; animation-duration:7s; animation-delay:.4s;"></span>
+    <span style="left:88%; width:9px; height:9px; animation-duration:9s; animation-delay:2s;"></span>
+  </div>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">Love <em>Wonders</em></div>
+      <div class="topbar-actions">
+        <div id="notif-mount" class="notif-mount"></div>
+        <button id="logout-btn" class="btn ghost small" type="button">Log out</button>
+      </div>
+    </div>
+    <div id="nav-mount"></div>
+
+    <h1 style="margin-top:32px;">Your profile</h1>
+    <p class="muted">What everyone sees is your photo, name, bio, age and general location. Everything below the line only opens for someone who has your code.</p>
+
+    <div class="detail-wrap">
+      <div>
+        <div class="card">
+          <label>Main photo</label>
+          <div class="photo-upload-row">
+            <img id="photo-preview" class="photo-preview" src="" alt="Your photo">
+            <div>
+              <div class="upload-btn-wrap btn subtle small">
+                Choose photo
+                <input id="photoFile" type="file" accept="image/*">
+              </div>
+              <div class="upload-hint">Stored directly in your profile — resized in your browser, no separate storage needed.</div>
+            </div>
+          </div>
+
+          <label for="name">Name</label>
+          <input id="name" type="text">
+          <label for="bio">Biography</label>
+          <textarea id="bio" placeholder="A few honest lines about you."></textarea>
+          <button id="save-profile" class="btn block" style="margin-top:20px;">Save profile</button>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h3 class="mt-0">Your ID code</h3>
+          <p class="muted" style="font-size:13px;">Hand this to someone you're comfortable letting in further. It's the only key to your private info.</p>
+          <div class="idcode-box">
+            <span id="idcode-value" class="idcode-value">·········</span>
+            <div class="idcode-actions">
+              <button id="copy-code" class="btn ghost small" type="button">Copy</button>
+              <button id="renew-code" class="btn subtle small" type="button">Renew code</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3 class="mt-0">About you</h3>
+          <p class="muted" style="font-size:13px;">Shown publicly so others can find you — and shown to you for finding matches.</p>
+          <div class="filters-card">
+            <div>
+              <label for="age">Age</label>
+              <input id="age" type="number" min="18" max="99">
+            </div>
+            <div>
+              <label for="gender">Gender</label>
+              <select id="gender">
+                <option value="">Prefer not to say</option>
+                <option value="woman">Woman</option>
+                <option value="man">Man</option>
+                <option value="nonbinary">Non-binary</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label for="country">Country</label>
+              <input id="country" type="text" placeholder="e.g. Nigeria">
+            </div>
+            <div>
+              <label for="city">City</label>
+              <input id="city" type="text" placeholder="e.g. Lagos">
+            </div>
+            <div>
+              <label for="ethnicity">Ethnicity</label>
+              <input id="ethnicity" type="text" placeholder="e.g. Yoruba">
+            </div>
+            <div>
+              <label for="nationality">Nationality</label>
+              <input id="nationality" type="text" placeholder="e.g. Nigerian">
+            </div>
+            <div>
+              <label for="relationship-intent">Looking for</label>
+              <select id="relationship-intent">
+                <option value="">Prefer not to say</option>
+                <option value="dating">Dating</option>
+                <option value="serious">Serious relationship</option>
+                <option value="marriage">Marriage</option>
+                <option value="friendship">Friendship</option>
+              </select>
+            </div>
+            <div>
+              <label for="religion">Religion</label>
+              <select id="religion">
+                <option value="">Prefer not to say</option>
+                <option value="christian">Christian</option>
+                <option value="muslim">Muslim</option>
+                <option value="traditional">Traditional / spiritual</option>
+                <option value="other">Other</option>
+                <option value="none">None</option>
+              </select>
+            </div>
+            <div>
+              <label for="education">Education</label>
+              <input id="education" type="text" placeholder="e.g. University of Lagos">
+            </div>
+            <div>
+              <label for="occupation">Occupation</label>
+              <input id="occupation" type="text" placeholder="e.g. Software developer">
+            </div>
+            <div>
+              <label for="languages">Languages spoken</label>
+              <input id="languages" type="text" placeholder="e.g. English, Yoruba, French">
+            </div>
+          </div>
+          <label for="interests" style="margin-top:16px;">Interests &amp; tags</label>
+          <input id="interests" type="text" placeholder="e.g. music, hiking, faith, cooking">
+          <div class="field-hint">Separate with commas — shown as tags on your profile.</div>
+
+          <label class="consent-row" for="show-online-status" style="margin-top:16px;">
+            <input type="checkbox" id="show-online-status" checked>
+            Show "online now" to other members
+          </label>
+          <button id="save-about" class="btn block" style="margin-top:20px;">Save details</button>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h3 class="mt-0">Your member number</h3>
+          <p class="muted" style="font-size:13px;">Share this so someone can find you directly by number in Discover's search — it's public and not a secret, unlike your ID code below.</p>
+          <div class="idcode-box">
+            <span id="memberno-value" class="idcode-value" style="font-size:18px;">LW-·······</span>
+            <button id="copy-memberno" class="btn ghost small" type="button">Copy</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h3 class="mt-0">Your taste</h3>
+          <p class="muted" style="font-size:13px;">Shapes your Recommended picks on Discover — leave any of these blank to widen your matches.</p>
+          <div class="filters-card">
+            <div>
+              <label for="pref-age-min">Age from</label>
+              <input id="pref-age-min" type="number" min="18" max="99">
+            </div>
+            <div>
+              <label for="pref-age-max">Age to</label>
+              <input id="pref-age-max" type="number" min="18" max="99">
+            </div>
+            <div>
+              <label for="pref-country">Preferred country</label>
+              <input id="pref-country" type="text" placeholder="Any">
+            </div>
+            <div>
+              <label for="pref-ethnicity">Preferred ethnicity</label>
+              <input id="pref-ethnicity" type="text" placeholder="Any">
+            </div>
+            <div>
+              <label for="pref-nationality">Preferred nationality</label>
+              <input id="pref-nationality" type="text" placeholder="Any">
+            </div>
+          </div>
+          <button id="save-taste" class="btn subtle block" style="margin-top:16px;">Save taste</button>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <h3 class="mt-0">Private — unlocked with your code</h3>
+
+          <label>Instagram</label>
+          <input type="text" data-social="instagram" placeholder="@handle or link">
+          <label>TikTok</label>
+          <input type="text" data-social="tiktok" placeholder="@handle or link">
+          <label>Snapchat</label>
+          <input type="text" data-social="snapchat" placeholder="@handle">
+          <label>WhatsApp</label>
+          <input type="text" data-social="whatsapp" placeholder="number or link">
+
+          <label>Extra photos</label>
+          <div class="upload-btn-wrap btn subtle small">
+            Add photos
+            <input id="extraPhotosFile" type="file" accept="image/*" multiple>
+          </div>
+          <div id="extra-photos-preview" class="photo-strip" style="margin-top:12px;"></div>
+          <p class="field-hint">These fields — and every extra photo — are encrypted before they're stored. Only someone with your current code can read them.</p>
+          <button id="save-private" class="btn block" style="margin-top:16px;">Save private info</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="profile.js"></script>
+</body>
+</html>

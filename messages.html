@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages — Love Wonders</title>
+<link rel="icon" type="image/jpeg" href="favicon.jpg">
+<link rel="apple-touch-icon" href="favicon.jpg">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#05040d">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-mode="dark">
+
+  <div class="bubble-field" aria-hidden="true">
+    <span style="left:8%; width:16px; height:16px; animation-duration:6.5s;"></span>
+    <span style="left:22%; width:10px; height:10px; animation-duration:8s; animation-delay:1s;"></span>
+    <span style="left:71%; width:14px; height:14px; animation-duration:7s; animation-delay:.4s;"></span>
+    <span style="left:88%; width:9px; height:9px; animation-duration:9s; animation-delay:2s;"></span>
+  </div>
+
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">Love <em>Wonders</em></div>
+      <div class="topbar-actions">
+        <div id="notif-mount" class="notif-mount"></div>
+        <button id="logout-btn" class="btn ghost small" type="button">Log out</button>
+      </div>
+    </div>
+    <div id="nav-mount"></div>
+
+    <h1 style="margin-top:32px;">Messages</h1>
+    <p class="muted">Every conversation you've started, in one place.</p>
+
+    <div class="messages-shell">
+      <div id="inbox-panel" class="inbox-panel">
+        <div class="inbox-search">
+          <input id="inbox-search-input" type="text" placeholder="Search conversations…">
+        </div>
+        <div id="convo-list"></div>
+        <p id="no-convos" class="muted" style="display:none; padding:18px; font-size:13px;">
+          No conversations yet — head to <a href="discover.html">Discover</a> and say hello.
+        </p>
+      </div>
+
+      <div id="chat-panel-wrap" class="chat-panel-wrap">
+        <div id="chat-placeholder" class="chat-placeholder">
+          <span class="lock-icon">&#10084;</span>
+          Pick a conversation to see it here.
+        </div>
+        <div id="chat-mount" style="width:100%; display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="messages.js"></script>
+</body>
+</html>
