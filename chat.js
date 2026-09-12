@@ -3,6 +3,7 @@ import {
   doc, setDoc, where
 } from "./firebase-init.js";
 import { loaderHtml, loaderStreamHtml } from "./common.js";
+import { showToast } from "./notifications.js";
 
 let unsubMessages = null;
 let unsubTyping = null;
@@ -125,7 +126,15 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
   let myClearedAtMs = 0;
   function renderMessages() {
     const visible = myClearedAtMs
-      ? latestDocs.filter(m => (m.createdAt?.toMillis?.() || 0) > myClearedAtMs)
+      ? latestDocs.filter(m => {
+          // A just-sent message hasn't round-tripped to the server yet, so
+          // its serverTimestamp() createdAt reads as null in our own local
+          // snapshot — treat that as "now" (definitely after any clear
+          // point) rather than 0, or it would flicker invisible right after
+          // sending until the server ack arrives.
+          const ms = m.createdAt?.toMillis ? m.createdAt.toMillis() : Date.now();
+          return ms > myClearedAtMs;
+        })
       : latestDocs;
     logEl.innerHTML = renderLog(visible, myUid, otherPhoto) || emptyState(otherName);
     syncTypingIndicator();
@@ -156,12 +165,18 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
     theirTypingUntil = theirTypingAt ? theirTypingAt + 4000 : 0;
     // `clearedAt.{myUid}` — set by the Clear chat button below — hides any
     // message sent before that point, for me only; the other person's view
-    // of the same thread is untouched. Re-render on every thread-doc update
-    // (not just when I click Clear) so this stays correct if the clear was
-    // triggered from another open tab.
-    const clearedAt = data?.clearedAt?.[myUid]?.toMillis?.();
+    // of the same thread is untouched. Stored as a plain number (Date.now()),
+    // not serverTimestamp() — a pending serverTimestamp() write reads back as
+    // null in our *own* local snapshot until the server round-trip completes,
+    // which made clicking Clear look like it did nothing for a beat (or
+    // indefinitely, offline). A plain number is correct in the very first
+    // local snapshot, no round-trip needed.
+    // Re-render on every thread-doc update (not just when I click Clear) so
+    // this stays correct if the clear was triggered from another open tab.
+    const rawCleared = data?.clearedAt?.[myUid];
+    const clearedAt = typeof rawCleared === "number" ? rawCleared : (rawCleared?.toMillis?.() || 0);
     if (clearedAt !== myClearedAtMs) {
-      myClearedAtMs = clearedAt || 0;
+      myClearedAtMs = clearedAt;
       renderMessages();
     } else {
       syncTypingIndicator();
@@ -206,13 +221,20 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
 
   mountEl.querySelector("#chat-clear-btn").addEventListener("click", async () => {
     if (!confirm(`Clear this conversation with ${otherName}? It'll disappear from your view — ${otherName} will still see their copy.`)) return;
+    // Apply locally first — don't wait on the round-trip to feel instant,
+    // and this is also what actually makes it work at all on a slow or
+    // momentarily-offline connection (the write below still queues and
+    // syncs once reconnected; Firestore's offline cache handles that part).
+    myClearedAtMs = Date.now();
+    renderMessages();
     try {
-      // Same shape as `lastRead.${myUid}` above — a per-user map field on the
-      // thread doc, so this write only ever touches my own key in it and the
-      // other participant's messages are untouched on their side.
-      await setDoc(doc(db, "threads", tid), { [`clearedAt.${myUid}`]: serverTimestamp() }, { merge: true });
+      // Same field shape as `lastRead.${myUid}` above — a per-user map field
+      // on the thread doc, so this write only ever touches my own key in it
+      // and the other participant's messages are untouched on their side.
+      await setDoc(doc(db, "threads", tid), { [`clearedAt.${myUid}`]: myClearedAtMs }, { merge: true });
     } catch (err) {
       console.error("Clear chat failed:", err);
+      showToast("Couldn't clear that chat — try again.", { type: "error" });
     }
   });
 }
