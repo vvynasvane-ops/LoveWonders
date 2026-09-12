@@ -4,6 +4,7 @@ import {
 } from "./firebase-init.js";
 import { loaderHtml, loaderStreamHtml } from "./common.js";
 import { showToast } from "./notifications.js";
+import { hashPin } from "./crypto-utils.js";
 
 let unsubMessages = null;
 let unsubTyping = null;
@@ -12,6 +13,95 @@ let lastTypingPingAt = 0;
 
 export function threadId(uidA, uidB) {
   return [uidA, uidB].sort().join("_");
+}
+
+// ------------------------------------------------------------------
+// Chat lock — a per-device PIN that hides a specific conversation's
+// content (both here and in the inbox preview) until unlocked.
+//
+// Chosen over the plain "Clear chat" button as a more reliable, proven
+// pattern (this is the same idea as WhatsApp's Chat Lock / Messenger's
+// Vault): a native `window.confirm()` dialog is unreliable inside an
+// embedded WebView (some never show it, some silently return false),
+// so "Clear chat" could look broken to a user even when the underlying
+// Firestore write is fine. Locking sidesteps that entirely — no native
+// dialog required to protect the content — and a custom in-DOM confirm
+// modal (below) replaces window.confirm() for the actual clear action.
+//
+// The PIN is hashed (SHA-256) before it ever touches localStorage, and
+// everything is local to this device/browser — this is a privacy
+// screen, not end-to-end security, same as the apps above.
+// ------------------------------------------------------------------
+function lockKey(tid, myUid) { return `lw-lock:${tid}:${myUid}`; }
+const unlockedThisSession = new Set(); // tid values unlocked once already this tab session
+
+export function isThreadLocked(tid, myUid) {
+  return !!localStorage.getItem(lockKey(tid, myUid));
+}
+async function setThreadLock(tid, myUid, pin) {
+  localStorage.setItem(lockKey(tid, myUid), await hashPin(pin));
+}
+function removeThreadLock(tid, myUid) {
+  localStorage.removeItem(lockKey(tid, myUid));
+}
+async function checkThreadPin(tid, myUid, pin) {
+  const stored = localStorage.getItem(lockKey(tid, myUid));
+  return stored && stored === await hashPin(pin);
+}
+
+/** Custom confirm modal — replaces window.confirm(), which is unreliable
+ *  inside embedded WebViews. Resolves true/false. Rendered into mountEl
+ *  so it works wherever the chat panel itself works. */
+function showConfirmModal(mountEl, { title, body, confirmLabel = "Confirm", danger = false }) {
+  return new Promise(resolve => {
+    const wrap = document.createElement("div");
+    wrap.className = "chat-modal-backdrop";
+    wrap.innerHTML = `
+      <div class="chat-modal">
+        <div class="chat-modal-title">${escapeHtml(title)}</div>
+        <div class="chat-modal-body">${escapeHtml(body)}</div>
+        <div class="chat-modal-actions">
+          <button type="button" class="btn ghost small" data-act="cancel">Cancel</button>
+          <button type="button" class="btn small ${danger ? "danger" : ""}" data-act="ok">${escapeHtml(confirmLabel)}</button>
+        </div>
+      </div>`;
+    mountEl.appendChild(wrap);
+    const done = val => { wrap.remove(); resolve(val); };
+    wrap.querySelector('[data-act="cancel"]').addEventListener("click", () => done(false));
+    wrap.querySelector('[data-act="ok"]').addEventListener("click", () => done(true));
+    wrap.addEventListener("click", e => { if (e.target === wrap) done(false); });
+  });
+}
+
+/** Small prompt modal for entering/setting a PIN. Resolves the PIN string, or null if cancelled. */
+function showPinModal(mountEl, { title, body, confirmLabel = "Continue" }) {
+  return new Promise(resolve => {
+    const wrap = document.createElement("div");
+    wrap.className = "chat-modal-backdrop";
+    wrap.innerHTML = `
+      <div class="chat-modal">
+        <div class="chat-modal-title">${escapeHtml(title)}</div>
+        <div class="chat-modal-body">${escapeHtml(body)}</div>
+        <input type="password" inputmode="numeric" maxlength="8" class="chat-pin-input" placeholder="PIN (4\u20138 digits)">
+        <div class="chat-modal-error" style="display:none;">Wrong PIN \u2014 try again.</div>
+        <div class="chat-modal-actions">
+          <button type="button" class="btn ghost small" data-act="cancel">Cancel</button>
+          <button type="button" class="btn small" data-act="ok">${escapeHtml(confirmLabel)}</button>
+        </div>
+      </div>`;
+    mountEl.appendChild(wrap);
+    const input = wrap.querySelector(".chat-pin-input");
+    input.focus();
+    const done = val => { wrap.remove(); resolve(val); };
+    wrap.querySelector('[data-act="cancel"]').addEventListener("click", () => done(null));
+    const submit = () => {
+      const v = input.value.trim();
+      if (v.length < 4) { input.classList.add("shake"); setTimeout(() => input.classList.remove("shake"), 300); return; }
+      done(v);
+    };
+    wrap.querySelector('[data-act="ok"]').addEventListener("click", submit);
+    input.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+  });
 }
 
 function escapeHtml(s) {
@@ -51,7 +141,20 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
           <div class="chat-header-name">${escapeHtml(otherName)}</div>
           <div class="chat-header-status"><span class="status-dot"></span>Active on Love Wonders</div>
         </div>
-        <button id="chat-clear-btn" class="btn ghost small chat-clear-btn" type="button" title="Clear this conversation for you">Clear chat</button>
+        <div class="chat-menu-wrap">
+          <button id="chat-menu-btn" class="btn ghost small chat-menu-btn" type="button" aria-haspopup="true" aria-expanded="false" title="Chat options">Options &#9662;</button>
+          <div id="chat-menu" class="chat-menu">
+            <button type="button" id="chat-lock-toggle" class="chat-menu-item"></button>
+            <button type="button" id="chat-clear-btn" class="chat-menu-item danger">Clear conversation</button>
+          </div>
+        </div>
+      </div>
+      <div id="chat-lock-screen" class="chat-lock-screen" style="display:none;">
+        <div class="chat-lock-icon">&#128274;</div>
+        <div class="chat-lock-title">This chat is locked</div>
+        <input type="password" inputmode="numeric" maxlength="8" class="chat-pin-input" id="chat-lock-input" placeholder="Enter PIN">
+        <div class="chat-modal-error" id="chat-lock-error" style="display:none;">Wrong PIN — try again.</div>
+        <button type="button" class="btn small" id="chat-lock-unlock-btn">Unlock</button>
       </div>
       <div id="chat-log" class="chat-log"></div>
       <div id="chat-send-status" class="chat-send-status"></div>
@@ -66,6 +169,81 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
   const input = mountEl.querySelector("#chat-text");
   const sendBtn = mountEl.querySelector("#chat-send");
   const sendStatus = mountEl.querySelector("#chat-send-status");
+  const lockScreen = mountEl.querySelector("#chat-lock-screen");
+  const chatWrap = mountEl.querySelector(".chat-wrap");
+
+  // ---- Options menu (Lock chat / Clear conversation) ----
+  const menuBtn = mountEl.querySelector("#chat-menu-btn");
+  const menu = mountEl.querySelector("#chat-menu");
+  const lockToggleBtn = mountEl.querySelector("#chat-lock-toggle");
+  menuBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    const opening = !menu.classList.contains("open");
+    menu.classList.toggle("open", opening);
+    menuBtn.setAttribute("aria-expanded", String(opening));
+  });
+  document.addEventListener("click", e => {
+    if (!mountEl.contains(e.target)) return;
+    if (!menu.contains(e.target) && e.target !== menuBtn) menu.classList.remove("open");
+  });
+
+  function refreshLockToggleLabel() {
+    lockToggleBtn.textContent = isThreadLocked(tid, myUid) ? "Unlock this chat" : "Lock this chat";
+  }
+  refreshLockToggleLabel();
+
+  lockToggleBtn.addEventListener("click", async () => {
+    menu.classList.remove("open");
+    if (isThreadLocked(tid, myUid)) {
+      const ok = await showConfirmModal(mountEl, {
+        title: "Remove chat lock?",
+        body: "This chat will no longer require a PIN to view.",
+        confirmLabel: "Remove lock", danger: true
+      });
+      if (!ok) return;
+      removeThreadLock(tid, myUid);
+      unlockedThisSession.delete(tid);
+      refreshLockToggleLabel();
+      showToast("Chat lock removed.", { type: "success" });
+    } else {
+      const pin = await showPinModal(mountEl, {
+        title: "Set a PIN for this chat",
+        body: "You'll need this PIN to open this conversation on this device. It's stored only on this device, not on the server.",
+        confirmLabel: "Set lock"
+      });
+      if (!pin) return;
+      await setThreadLock(tid, myUid, pin);
+      unlockedThisSession.add(tid); // no need to immediately re-prompt in the same session
+      refreshLockToggleLabel();
+      showToast("Chat locked.", { type: "success" });
+    }
+  });
+
+  // ---- Lock screen gate ----
+  function showLockGate() {
+    chatWrap.classList.add("is-locked");
+    lockScreen.style.display = "flex";
+    const pinInput = lockScreen.querySelector("#chat-lock-input");
+    const errEl = lockScreen.querySelector("#chat-lock-error");
+    const unlockBtn = lockScreen.querySelector("#chat-lock-unlock-btn");
+    setTimeout(() => pinInput.focus(), 50);
+    const tryUnlock = async () => {
+      const ok = await checkThreadPin(tid, myUid, pinInput.value.trim());
+      if (ok) {
+        unlockedThisSession.add(tid);
+        chatWrap.classList.remove("is-locked");
+        lockScreen.style.display = "none";
+      } else {
+        errEl.style.display = "block";
+        pinInput.classList.add("shake");
+        setTimeout(() => pinInput.classList.remove("shake"), 300);
+        pinInput.value = "";
+      }
+    };
+    unlockBtn.addEventListener("click", tryUnlock);
+    pinInput.addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
+  }
+  if (isThreadLocked(tid, myUid) && !unlockedThisSession.has(tid)) showLockGate();
 
   // Auto-grow the textarea like a real chat input.
   const autoGrow = () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 100) + "px"; };
@@ -220,7 +398,17 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
   });
 
   mountEl.querySelector("#chat-clear-btn").addEventListener("click", async () => {
-    if (!confirm(`Clear this conversation with ${otherName}? It'll disappear from your view — ${otherName} will still see their copy.`)) return;
+    menu.classList.remove("open");
+    // A native window.confirm() is unreliable inside embedded WebViews (some
+    // never surface it, some auto-dismiss as "cancel"), which is why Clear
+    // chat could look broken. This in-DOM modal doesn't depend on the host
+    // shell supporting JS dialogs at all.
+    const ok = await showConfirmModal(mountEl, {
+      title: "Clear this conversation?",
+      body: `It'll disappear from your view — ${otherName} will still see their copy.`,
+      confirmLabel: "Clear", danger: true
+    });
+    if (!ok) return;
     // Apply locally first — don't wait on the round-trip to feel instant,
     // and this is also what actually makes it work at all on a slow or
     // momentarily-offline connection (the write below still queues and

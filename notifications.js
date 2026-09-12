@@ -98,7 +98,7 @@ export function renderBell(uid) {
     <div id="notif-panel" class="notif-panel">
       <div class="notif-panel-head">
         <span>Notifications</span>
-        ${list.length ? `<button id="notif-clear" type="button">Clear all</button>` : ""}
+        <button id="notif-clear" type="button" class="notif-clear-btn" ${list.length ? "" : "disabled"}>Clear all</button>
       </div>
       <div class="notif-list">
         ${list.length ? list.map(n => `

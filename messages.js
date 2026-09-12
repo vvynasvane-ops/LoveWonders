@@ -1,5 +1,5 @@
 import { requireAuth, db, auth, signOut, doc, getDoc } from "./firebase-init.js";
-import { openChat, closeChat, listThreads } from "./chat.js";
+import { openChat, closeChat, listThreads, isThreadLocked } from "./chat.js";
 import { initTheme } from "./theme.js";
 import { renderNav } from "./nav.js";
 import { escapeHtml, placeholderPhoto, loaderHtml, loaderTrackHtml } from "./common.js";
@@ -74,12 +74,16 @@ async function render() {
 
   convoList.innerHTML = visible.map(({ t, other }) => {
     const unread = isUnread(t);
+    const locked = isThreadLocked(t.id, me.uid);
+    const preview = locked
+      ? `&#128274; Locked chat`
+      : `${t.lastFrom === me.uid ? "You: " : ""}${escapeHtml(t.lastText || "")}`;
     return `
       <div class="convo-row ${unread ? "unread" : ""} ${t.id === activeTid ? "active" : ""}" data-tid="${t.id}" data-uid="${other.uid}">
         <img src="${other.photoURL || placeholderPhoto()}" alt="">
         <div class="convo-text-col">
           <div class="convo-name">${escapeHtml(other.name || "Member")} ${unread ? `<span class="convo-new-pill">New</span>` : ""}</div>
-          <div class="convo-preview">${t.lastFrom === me.uid ? "You: " : ""}${escapeHtml(t.lastText || "")}</div>
+          <div class="convo-preview ${locked ? "locked" : ""}">${preview}</div>
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
           <span class="convo-time">${fmtRelative(t.lastAt)}</span>

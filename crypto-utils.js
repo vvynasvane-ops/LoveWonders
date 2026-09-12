@@ -55,6 +55,14 @@ export async function decryptWithCode(code, payload) {
   }
 }
 
+/** Hashes a PIN/password with SHA-256 for local (device-only) verification —
+ *  used by the chat-lock feature. Not a secret vault, just enough so the
+ *  raw PIN is never sitting in localStorage in plain text. */
+export async function hashPin(pin) {
+  const bytes = await crypto.subtle.digest("SHA-256", enc.encode(pin));
+  return toB64(new Uint8Array(bytes));
+}
+
 /** Generates a 9-character code from letters, digits and a safe set of special characters. */
 export function generateIdCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%*+?";
