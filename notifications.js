@@ -197,7 +197,7 @@ export function watchForTasteMatches(uid, myPrefs) {
         try {
           new Notification("Love Wonders — new match", {
             body: `${name} just joined and matches your taste preferences.`,
-            icon: "favicon.jpg"
+            icon: "icon-192.png"
           });
         } catch { /* some browsers restrict this — the in-app toast/bell still cover it */ }
       }
@@ -272,7 +272,7 @@ export function watchForNewResponses(uid) {
           try {
             new Notification("Love Wonders — new message", {
               body: `${name} sent you a message.`,
-              icon: "favicon.jpg"
+              icon: "icon-192.png"
             });
           } catch { /* some browsers restrict this — the in-app toast/bell still cover it */ }
         }

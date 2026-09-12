@@ -151,11 +151,42 @@ Firebase Auth requires the page be served over `http://localhost` or
   background but — like the existing chat live-updates — still needs the
   tab open somewhere; see the point below on true push for when it's
   fully closed.
+- **New-responder notifications**: the same bell/toast/browser-Notification
+  pipeline also watches your message threads live and fires the moment
+  someone "reaches out" — either their first message to you in a brand-new
+  thread, or a reply back after you messaged them first (`lastFrom` on the
+  thread is them, and it's new since the tab opened). The Messages inbox
+  (`messages.html`) also has an **All / New responders** filter with a live
+  count badge, so you can see exactly who's waiting on a reply from you
+  without scanning the whole list.
 
-## 7. Still worth adding later
-- No push notifications for new messages *or* new-member taste matches
-  while the app is fully closed — both currently only fire live while a
-  tab is open. Real background push would need a service worker + FCM
+## 7. App icon
+All app icons — browser tab favicon, iOS/Android home-screen icon, and the
+PWA install icon on desktop and mobile — are generated from `favicon.jpg`
+(the heart-splash photo) rather than linking that raw file directly, since
+it's a tall 694×1138 photo, not a square icon; forcing a non-square image
+into an icon slot gets stretched or oddly cropped differently by every OS.
+Generated once from the source photo via Pillow (see the script history in
+this project if you ever need to regenerate it after swapping the photo):
+- A square crop from the top of the photo (full splash + heart, since the
+  plain lower reflection wasn't adding anything at icon size).
+- Plain full-bleed PNGs at 16/32/48/96/192/512px plus a 180px
+  `apple-touch-icon.png`, and a multi-size `favicon.ico` for older browsers.
+- Two **maskable** PWA icons (192/512px) — Android/desktop launchers apply
+  their own mask shape (circle, squircle, rounded square) and clip anything
+  outside a centered safe zone, so these scale the art down onto a padded
+  canvas in a teal sampled from the photo itself, instead of risking the
+  heart or splash tips getting cut off.
+`manifest.json` lists all five PWA sizes with the correct `purpose` per
+icon (`any` vs `maskable`), and every page's `<head>` links the favicon set
+and `apple-touch-icon.png` directly — swap in `favicon.jpg` and re-run the
+same crop/resize steps if the source photo ever changes.
+
+## 8. Still worth adding later
+- No *background* push for new messages or new-member taste matches —
+  both fire live (in-app toast/bell + browser Notification) whenever a tab
+  is open, per section 6 above, but nothing arrives while the app is fully
+  closed. True background push would need a service worker + FCM
   (or similar) and, for reliability, a small backend — out of scope for
   this static-file setup for now.
 - No video calls or in-app translation — both need external services
