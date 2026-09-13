@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- Applies saved appearance (font, color, background) before first paint — must stay first, as a classic (non-module) script, to avoid a flash of default styling. -->
+<script src="appearance-core.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Theme — Love Wonders</title>
 <link rel="icon" href="favicon.ico" sizes="any">
@@ -90,19 +92,20 @@
 
       <div class="gilt-rule"></div>
 
-      <label>Font color</label>
-      <div class="font-color-row">
-        <input type="color" id="appearance-font-color" class="font-color-input" title="Custom font color">
-        <div class="font-color-presets">
-          <button type="button" class="font-color-swatch font-color-swatch-default" data-font-color="" title="Theme default"></button>
-          <button type="button" class="font-color-swatch" style="background:#eef0ff;" data-font-color="#eef0ff" title="Starlight white"></button>
-          <button type="button" class="font-color-swatch" style="background:#c9c2ff;" data-font-color="#c9c2ff" title="Soft lavender"></button>
-          <button type="button" class="font-color-swatch" style="background:#8fe9ff;" data-font-color="#8fe9ff" title="Cyan glow"></button>
-          <button type="button" class="font-color-swatch" style="background:#ffc2e0;" data-font-color="#ffc2e0" title="Rosé pink"></button>
-          <button type="button" class="font-color-swatch" style="background:#ffe3a1;" data-font-color="#ffe3a1" title="Nebula gold"></button>
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div id="font-color-swatch" class="swatch"></div>
+        <div>
+          <div style="font-family:var(--font-display); font-size:16px;">Font color</div>
+          <div class="muted" style="font-size:12px;">Drag to mix your own, in the same Red/Green/Blue style as the accent color above.</div>
         </div>
       </div>
-      <p class="field-hint">Pick a swatch, or tap the square for any color you like.</p>
+      <label>Red</label>
+      <div class="rgb-row"><input id="font-color-r" type="range" min="0" max="255"><span id="font-color-r-val">238</span></div>
+      <label>Green</label>
+      <div class="rgb-row"><input id="font-color-g" type="range" min="0" max="255"><span id="font-color-g-val">240</span></div>
+      <label>Blue</label>
+      <div class="rgb-row"><input id="font-color-b" type="range" min="0" max="255"><span id="font-color-b-val">255</span></div>
+      <button type="button" id="font-color-default-btn" class="btn ghost small" style="margin-top:10px;">Use theme default</button>
 
       <div class="gilt-rule"></div>
 

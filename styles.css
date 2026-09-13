@@ -79,6 +79,7 @@ body{
   font-weight: var(--user-font-weight);
   letter-spacing: var(--user-letter-spacing);
   min-height: 100vh;
+  min-height: 100dvh; /* dynamic viewport height: on mobile, plain 100vh is measured against the browser chrome's tallest (collapsed) state, so content can jump/resize as the address bar shows and hides while scrolling. dvh tracks the real visible area instead, so layout — and the fixed nav/background sitting against it — stays put. Older browsers that don't support dvh simply ignore this line and keep the 100vh above. */
   transition: background .3s ease, color .3s ease;
   line-height: var(--user-line-height);
   animation: page-fade-in .5s ease both;
@@ -496,23 +497,6 @@ textarea{ resize: vertical; min-height: 90px; }
   font-size:22px; color: var(--text-muted); overflow:hidden;
 }
 .bg-swatch-custom:hover{ color: var(--accent); }
-
-/* ---- font color: native picker + quick preset dots ---- */
-.font-color-row{ display:flex; align-items:center; gap:12px; margin-top:8px; flex-wrap:wrap; }
-.font-color-input{
-  width:44px; height:44px; padding:0; border:2px solid var(--line); border-radius: var(--radius-sm);
-  background: none; cursor:pointer;
-}
-.font-color-presets{ display:flex; gap:8px; flex-wrap:wrap; }
-.font-color-swatch{
-  width:26px; height:26px; border-radius:50%; border:2px solid var(--line); cursor:pointer;
-  position:relative; transition: transform .15s ease, border-color .15s ease;
-}
-.font-color-swatch:hover{ transform: translateY(-2px); }
-.font-color-swatch.active{ border-color: var(--accent); box-shadow: 0 0 0 2px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .3); }
-.font-color-swatch-default{
-  background: conic-gradient(var(--text), var(--text-muted), var(--accent), var(--teal), var(--text));
-}
 
 /* ---- cards: glassy panels with a soft glowing edge ---- */
 .card{

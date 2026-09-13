@@ -1,27 +1,34 @@
 // ------------------------------------------------------------------
-// Appearance settings — font, whole-page background blur, and
-// background image (curated presets or a photo from the user's own
-// device). Saved to localStorage (per device) and applied via CSS
-// variables (see :root in styles.css), same pattern as theme.js's
-// accent/mode, so every page picks them up the moment
-// initAppearance() runs.
+// Wires up the Settings → Appearance controls (font, font color,
+// background image, blur). The actual state and CSS-variable logic
+// live in appearance-core.js — a plain classic script loaded first in
+// <head> on every page, which applies the saved appearance before
+// first paint (so there's never a flash of default styling) and
+// exposes it all as window.LWAppearance. This module reuses that same
+// state/functions rather than keeping a second copy.
 // ------------------------------------------------------------------
 import { showToast } from "./notifications.js";
 
 const root = document.documentElement;
-const STORE_KEY = "lw-appearance";
-const CUSTOM_BG_KEY = "lw-appearance-bg-custom"; // kept separate from the settings blob — it's much bigger
 
-const FONT_STACKS = {
-  rajdhani: "'Rajdhani', -apple-system, sans-serif",
-  poppins: "'Poppins', -apple-system, sans-serif",
-  playfair: "'Playfair Display', Georgia, serif",
-  quicksand: "'Quicksand', -apple-system, sans-serif",
-  nunito: "'Nunito', -apple-system, sans-serif",
-  dancing: "'Dancing Script', cursive",
-  merriweather: "'Merriweather', Georgia, serif",
-  spacegrotesk: "'Space Grotesk', -apple-system, sans-serif"
-};
+// window.LWAppearance is set by appearance-core.js, which must be a
+// classic <script> placed before this module runs. Guard against it
+// being missing (e.g. the tag got removed from a page by mistake) so a
+// broken page doesn't also lose the rest of Settings.
+const LW = window.LWAppearance || (function () {
+  console.error("appearance-core.js didn't run before appearance.js — check its <script> tag is present in <head>.");
+  const fallbackDefaults = { family: "rajdhani", size: 16, weight: 400, spacing: 0, lineHeight: 1.5, blur: 10, bg: "none", color: "" };
+  return {
+    STORE_KEY: "lw-appearance", CUSTOM_BG_KEY: "lw-appearance-bg-custom",
+    FONT_STACKS: { rajdhani: "'Rajdhani', -apple-system, sans-serif" },
+    BG_PRESETS: { none: "none" }, DEFAULTS: fallbackDefaults,
+    load: () => ({ ...fallbackDefaults }), save: () => {}, apply: () => {},
+    state: { ...fallbackDefaults }, customDataUrl: null
+  };
+})();
+
+const { CUSTOM_BG_KEY, DEFAULTS, save, apply } = LW;
+
 export const FONT_LABELS = {
   rajdhani: "Rajdhani (default)",
   poppins: "Poppins — clean & modern",
@@ -32,73 +39,7 @@ export const FONT_LABELS = {
   merriweather: "Merriweather — classic reading serif",
   spacegrotesk: "Space Grotesk — sleek & techy"
 };
-
-// Gradient-only "photos" tuned to the app's own palette — no external
-// images to fetch, license, or have fail to load. Each is picked to fit
-// a romance app rather than being generically decorative.
-const BG_PRESETS = {
-  none: "none",
-  aurora: `radial-gradient(ellipse 60% 50% at 18% 15%, hsl(265 85% 42% / .38), transparent 60%),
-           radial-gradient(ellipse 55% 45% at 82% 25%, hsl(189 85% 45% / .3), transparent 60%),
-           radial-gradient(ellipse 70% 55% at 50% 95%, hsl(265 80% 22% / .45), transparent 65%)`,
-  rose: `radial-gradient(ellipse 60% 50% at 20% 12%, hsl(332 78% 46% / .35), transparent 60%),
-         radial-gradient(ellipse 55% 50% at 85% 78%, hsl(18 82% 50% / .28), transparent 60%),
-         radial-gradient(ellipse 70% 55% at 50% 100%, hsl(285 55% 28% / .4), transparent 65%)`,
-  bloom: `radial-gradient(circle at 14% 82%, hsl(302 82% 46% / .32), transparent 45%),
-          radial-gradient(circle at 86% 14%, hsl(255 78% 46% / .32), transparent 45%),
-          radial-gradient(circle at 50% 50%, hsl(200 75% 40% / .16), transparent 62%)`
-};
 export const BG_PRESET_LABELS = { none: "None (default)", aurora: "Aurora Deep", rose: "Rosé Dusk", bloom: "Midnight Bloom", custom: "Your photo" };
-
-// Quick font-color swatches tuned to read well on the app's dark AND light
-// modes. "" means "no override" — follow the theme's own text color (which
-// still changes with dark/light mode and stays in sync with the accent).
-const FONT_COLOR_PRESETS = {
-  "": "Theme default",
-  "#eef0ff": "Starlight white",
-  "#c9c2ff": "Soft lavender",
-  "#8fe9ff": "Cyan glow",
-  "#ffc2e0": "Rosé pink",
-  "#ffe3a1": "Nebula gold"
-};
-export { FONT_COLOR_PRESETS };
-
-const DEFAULTS = {
-  family: "rajdhani", size: 16, weight: 400, spacing: 0, lineHeight: 1.5,
-  blur: 10, bg: "none", color: ""
-};
-
-function load() {
-  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORE_KEY) || "{}") }; }
-  catch { return { ...DEFAULTS }; }
-}
-function save(state) { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
-
-function apply(state, customDataUrl) {
-  root.style.setProperty("--user-font-family", FONT_STACKS[state.family] || FONT_STACKS.rajdhani);
-  root.style.setProperty("--user-font-size", state.size + "px");
-  root.style.setProperty("--user-font-weight", state.weight);
-  root.style.setProperty("--user-letter-spacing", state.spacing + "px");
-  root.style.setProperty("--user-line-height", state.lineHeight);
-  root.style.setProperty("--user-font-color", state.color || "var(--text)");
-  // This blurs the whole fixed background layer (body::before in
-  // styles.css), not just the strip of it that happens to sit behind a
-  // card — a slider that only softened whatever was directly under a
-  // panel looked like it wasn't doing anything most of the time.
-  root.style.setProperty("--glass-blur", state.blur + "px");
-
-  // Background: a photo from the user's own device gets two layers (see
-  // body::before/::after in styles.css) — a blurred, full-bleed "ambient"
-  // copy behind, and a sharp, uncropped, `contain`-sized copy in front so
-  // the photo itself is never zoomed, cropped, or stretched, just centered
-  // and scaled to fit the screen. The 3 built-in presets are gradients, so
-  // they only ever use the single ambient layer, same as before.
-  const isCustomPhoto = state.bg === "custom" && !!customDataUrl;
-  const ambientImage = isCustomPhoto ? `url("${customDataUrl}")` : (BG_PRESETS[state.bg] || BG_PRESETS.none);
-  root.style.setProperty("--bg-preset-image", ambientImage);
-  root.style.setProperty("--bg-photo-image", isCustomPhoto ? `url("${customDataUrl}")` : "none");
-  root.style.setProperty("--bg-ambient-blur", isCustomPhoto ? "46px" : "0px");
-}
 
 /** Downscales an uploaded photo before it goes anywhere near localStorage
  *  (device storage quotas are typically 5–10MB total, shared with
@@ -123,14 +64,23 @@ function downscaleImage(file, maxEdge = 1600, quality = 0.75) {
   });
 }
 
-/** Call once per page (alongside initTheme()) to apply saved appearance
- *  everywhere, and — on pages that have the controls in the DOM — wire
- *  them up live. Safe to call on pages without any of these elements. */
+const clamp255 = n => Math.max(0, Math.min(255, Math.round(n)));
+function hexToRgb(hex) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "");
+  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
+}
+function rgbToHex(r, g, b) {
+  return "#" + [r, g, b].map(v => clamp255(v).toString(16).padStart(2, "0")).join("");
+}
+
+/** Call once per page (alongside initTheme()) to wire up the controls on
+ *  pages that have them in the DOM. The appearance itself is already
+ *  applied to the page by appearance-core.js before this ever runs — this
+ *  just syncs the on-screen controls to match and attaches listeners.
+ *  Safe to call on pages without any of these elements. */
 export function initAppearance() {
-  const state = load();
-  let customDataUrl = null;
-  try { customDataUrl = localStorage.getItem(CUSTOM_BG_KEY); } catch {}
-  apply(state, customDataUrl);
+  const state = LW.state;
+  let customDataUrl = LW.customDataUrl;
 
   const persistAndToast = (label) => {
     save(state);
@@ -170,32 +120,48 @@ export function initAppearance() {
     input.addEventListener("change", () => persistAndToast("Appearance"));
   });
 
-  // Font color — a native color picker plus a row of quick preset swatches
-  const colorInput = document.querySelector("#appearance-font-color");
-  const colorPresetBtns = document.querySelectorAll("[data-font-color]");
-  function markActiveColorPreset() {
-    colorPresetBtns.forEach(b => b.classList.toggle("active", (b.dataset.fontColor || "") === (state.color || "")));
-  }
-  if (colorInput) {
-    colorInput.value = state.color || "#eef0ff";
-    colorInput.addEventListener("input", () => {
-      state.color = colorInput.value;
+  // Font color — RGB sliders, same pattern as the accent color picker in
+  // the Theme card, with a live swatch preview. An empty state.color means
+  // "no override" (follow the theme's own text color, which still tracks
+  // dark/light mode) — the default button restores that.
+  const colorSwatch = document.querySelector("#font-color-swatch");
+  const rInput = document.querySelector("#font-color-r");
+  const gInput = document.querySelector("#font-color-g");
+  const bInput = document.querySelector("#font-color-b");
+  const rVal = document.querySelector("#font-color-r-val");
+  const gVal = document.querySelector("#font-color-g-val");
+  const bVal = document.querySelector("#font-color-b-val");
+  const defaultBtn = document.querySelector("#font-color-default-btn");
+  const paintColorSwatch = () => { if (colorSwatch) colorSwatch.style.background = state.color || "var(--text)"; };
+  const setSliderReadouts = (r, g, b) => {
+    if (rInput) rInput.value = r; if (rVal) rVal.textContent = r;
+    if (gInput) gInput.value = g; if (gVal) gVal.textContent = g;
+    if (bInput) bInput.value = b; if (bVal) bVal.textContent = b;
+  };
+  if (rInput && gInput && bInput) {
+    const initRgb = hexToRgb(state.color) || { r: 238, g: 240, b: 255 }; // matches --text's starlight white, a sensible starting point when following the theme default
+    setSliderReadouts(initRgb.r, initRgb.g, initRgb.b);
+    paintColorSwatch();
+    const updateFromSliders = () => {
+      state.color = rgbToHex(+rInput.value, +gInput.value, +bInput.value);
+      if (rVal) rVal.textContent = rInput.value;
+      if (gVal) gVal.textContent = gInput.value;
+      if (bVal) bVal.textContent = bInput.value;
       apply(state, customDataUrl);
-      markActiveColorPreset();
+      paintColorSwatch();
+    };
+    [rInput, gInput, bInput].forEach(input => {
+      input.addEventListener("input", updateFromSliders);
+      input.addEventListener("change", () => persistAndToast("Font color"));
     });
-    colorInput.addEventListener("change", () => persistAndToast("Font color"));
   }
-  if (colorPresetBtns.length) {
-    colorPresetBtns.forEach(btn => {
-      btn.addEventListener("click", () => {
-        state.color = btn.dataset.fontColor || "";
-        if (colorInput && state.color) colorInput.value = state.color;
-        apply(state, customDataUrl);
-        markActiveColorPreset();
-        persistAndToast("Font color");
-      });
+  if (defaultBtn) {
+    defaultBtn.addEventListener("click", () => {
+      state.color = "";
+      apply(state, customDataUrl);
+      paintColorSwatch();
+      persistAndToast("Font color");
     });
-    markActiveColorPreset();
   }
 
   // Background image presets — a row of swatch buttons
@@ -242,6 +208,7 @@ export function initAppearance() {
         const dataUrl = await downscaleImage(file);
         localStorage.setItem(CUSTOM_BG_KEY, dataUrl);
         customDataUrl = dataUrl;
+        LW.customDataUrl = dataUrl;
         state.bg = "custom";
         apply(state, customDataUrl);
         markActiveSwatch();
@@ -266,6 +233,7 @@ export function initAppearance() {
     resetBtn.addEventListener("click", () => {
       Object.assign(state, DEFAULTS);
       customDataUrl = null;
+      LW.customDataUrl = null;
       try { localStorage.removeItem(CUSTOM_BG_KEY); } catch {}
       apply(state, customDataUrl);
       save(state);
@@ -276,8 +244,9 @@ export function initAppearance() {
         if (input) input.value = state[key];
         if (label) label.textContent = state[key] + unit;
       });
-      if (colorInput) colorInput.value = "#eef0ff";
-      markActiveColorPreset();
+      const resetRgb = hexToRgb("#eef0ff");
+      setSliderReadouts(resetRgb.r, resetRgb.g, resetRgb.b);
+      paintColorSwatch();
       markActiveSwatch();
       paintCustomThumb();
       showToast("Appearance reset to defaults", { type: "success", duration: 2000 });
