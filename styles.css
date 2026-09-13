@@ -52,6 +52,9 @@
   --user-line-height: 1.5;
   --glass-blur: 10px;
   --bg-preset-image: none;
+  --bg-photo-image: none;
+  --bg-ambient-blur: 0px;
+  --user-font-color: var(--text);
 }
 
 [data-mode="light"]{
@@ -70,7 +73,7 @@
 html,body{ margin:0; padding:0; }
 body{
   background: var(--bg);
-  color: var(--text);
+  color: var(--user-font-color);
   font-family: var(--user-font-family);
   font-size: var(--user-font-size);
   font-weight: var(--user-font-weight);
@@ -81,24 +84,49 @@ body{
   animation: page-fade-in .5s ease both;
   position: relative;
 }
-/* User-chosen background image/gradient — a fixed layer behind the
-   starfield and all content. None of the three built-in presets are
-   photos (no external assets to fetch or license), just tuned gradients
-   in the app's own palette; a device photo works the same way via
-   background-size/position below. The blur slider (Settings → Appearance)
-   applies filter: blur() to this whole layer — not backdrop-filter under
-   individual cards — so it softens the entire page background at once,
-   the same everywhere regardless of what's on top of it. Oversized
-   (110%) and offset -5% so the blurred, slightly-magnified edges never
-   show a hard boundary against the viewport. */
+/* IMPORTANT: this animation must only ever touch opacity, never transform.
+   `transform` on `body` (even an identity value like translateY(0), which
+   is what the old fade-in used) creates a new containing block for every
+   `position: fixed` descendant on the page — the background layers below,
+   the starfield canvas, the full-page loader, and the mobile bottom nav
+   (#nav-mount) all switch from "fixed to the viewport" to "fixed to the
+   body box" instead. On a tall/scrollable page that makes all of them
+   silently scroll away with the content, which is exactly the bug behind
+   both the wandering background photo and the un-fixed Discover/Theme/
+   Messages/Profile bar on Android. Keep this opacity-only. */
+@keyframes page-fade-in{
+  from{ opacity:0; }
+  to{ opacity:1; }
+}
+/* User-chosen background — two fixed layers behind the starfield and all
+   content, both pinned to the *viewport* (not the page), so they never
+   move as you scroll.
+   ::before is the ambient wash: always sized to `cover` and oversized
+   (110%/-5%) so its blurred edges never show a hard boundary. For the
+   3 built-in presets (plain CSS gradients, no external images to fetch or
+   license) this is the *only* layer, unchanged from before.
+   ::after is the sharp layer, used only for a photo picked from the
+   user's own device. It renders with `background-size: contain` — the
+   photo is shown at its true aspect ratio, centered, scaled only enough
+   to fit inside the screen: never cropped, zoomed, or stretched. The
+   ambient layer behind it reuses the same photo, blurred well past the
+   user's own blur slider, so the letterboxed edges glow with the photo's
+   own colors instead of falling back to flat void-black. */
 body::before{
   content:""; position:fixed; top:-5%; left:-5%; width:110%; height:110%; z-index:0; pointer-events:none;
   background-image: var(--bg-preset-image);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  filter: blur(calc(var(--glass-blur) + var(--bg-ambient-blur)));
+}
+body::after{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image: var(--bg-photo-image);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
   filter: blur(var(--glass-blur));
-  transition: background-image .5s ease, filter .3s ease;
 }
 
 /* ---- cosmic starfield canvas, injected by starfield.js — behind everything, non-interactive ---- */
@@ -108,10 +136,6 @@ body::before{
 }
 [data-mode="light"] #starfield-canvas{ opacity: .22; }
 
-@keyframes page-fade-in{
-  from{ opacity:0; transform: translateY(6px); }
-  to{ opacity:1; transform: translateY(0); }
-}
 @keyframes rise-in{
   from{ opacity:0; transform: translateY(10px); }
   to{ opacity:1; transform: translateY(0); }
@@ -348,7 +372,7 @@ a{ color: var(--accent); text-decoration: none; }
   font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
-  color: var(--text);
+  color: var(--user-font-color);
   display:flex; align-items:center; gap:14px;
 }
 .brand em{
@@ -414,7 +438,7 @@ a{ color: var(--accent); text-decoration: none; }
 .btn.subtle{
   background: var(--bg-inset);
   border-color: var(--line);
-  color: var(--text);
+  color: var(--user-font-color);
   box-shadow: none;
 }
 .btn.subtle:hover{ border-color: var(--teal); box-shadow: 0 0 16px hsl(var(--teal-h) var(--teal-s) var(--teal-l) / .2); }
@@ -427,7 +451,7 @@ input, textarea, select{
   width:100%;
   background: var(--bg-inset);
   border: 1px solid var(--line);
-  color: var(--text);
+  color: var(--user-font-color);
   padding: 12px 16px;
   border-radius: var(--radius-sm);
   font-family: var(--font-body);
@@ -447,7 +471,7 @@ textarea{ resize: vertical; min-height: 90px; }
 .bg-preset-row{ display:flex; gap:12px; margin-top:8px; }
 .bg-swatch{
   display:inline-flex; align-items:center; justify-content:center;
-  width:56px; height:56px; border-radius: var(--radius-md, 14px);
+  width:56px; height:56px; border-radius: var(--radius-sm);
   border:2px solid var(--line); cursor:pointer; position:relative;
   background-color: var(--bg-inset);
   transition: border-color .15s ease, transform .15s ease;
@@ -472,6 +496,23 @@ textarea{ resize: vertical; min-height: 90px; }
   font-size:22px; color: var(--text-muted); overflow:hidden;
 }
 .bg-swatch-custom:hover{ color: var(--accent); }
+
+/* ---- font color: native picker + quick preset dots ---- */
+.font-color-row{ display:flex; align-items:center; gap:12px; margin-top:8px; flex-wrap:wrap; }
+.font-color-input{
+  width:44px; height:44px; padding:0; border:2px solid var(--line); border-radius: var(--radius-sm);
+  background: none; cursor:pointer;
+}
+.font-color-presets{ display:flex; gap:8px; flex-wrap:wrap; }
+.font-color-swatch{
+  width:26px; height:26px; border-radius:50%; border:2px solid var(--line); cursor:pointer;
+  position:relative; transition: transform .15s ease, border-color .15s ease;
+}
+.font-color-swatch:hover{ transform: translateY(-2px); }
+.font-color-swatch.active{ border-color: var(--accent); box-shadow: 0 0 0 2px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .3); }
+.font-color-swatch-default{
+  background: conic-gradient(var(--text), var(--text-muted), var(--accent), var(--teal), var(--text));
+}
 
 /* ---- cards: glassy panels with a soft glowing edge ---- */
 .card{
@@ -596,7 +637,7 @@ textarea{ resize: vertical; min-height: 90px; }
   padding:8px 15px;
   border-radius: var(--radius-pill);
   font-size: 13px;
-  color: var(--text);
+  color: var(--user-font-color);
 }
 .social-row a:hover{ border-color: var(--accent); color: var(--accent); }
 
@@ -661,7 +702,7 @@ textarea{ resize: vertical; min-height: 90px; }
 [data-mode="light"] .chat-menu{ background: var(--bg-raised); backdrop-filter:none; }
 .chat-menu-item{
   background:none; border:none; text-align:left; padding:12px 16px;
-  font-family: var(--font-body); font-size:13px; font-weight:600; color: var(--text);
+  font-family: var(--font-body); font-size:13px; font-weight:600; color: var(--user-font-color);
   cursor:pointer; transition: background .15s ease;
 }
 .chat-menu-item:hover{ background: var(--bg-inset); }
@@ -681,8 +722,8 @@ textarea{ resize: vertical; min-height: 90px; }
 .chat-modal-error{ font-size:12px; color:#ff9ab3; margin:6px 0 0; }
 .chat-modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:14px; }
 .chat-pin-input{
-  width:100%; box-sizing:border-box; padding:11px 14px; border-radius: var(--radius-md);
-  border:1px solid var(--line); background: var(--bg-inset); color: var(--text);
+  width:100%; box-sizing:border-box; padding:11px 14px; border-radius: var(--radius-sm);
+  border:1px solid var(--line); background: var(--bg-inset); color: var(--user-font-color);
   font-size:16px; letter-spacing:.3em; text-align:center;
 }
 .chat-pin-input.shake{ animation: pin-shake .3s ease; }
@@ -760,7 +801,7 @@ textarea{ resize: vertical; min-height: 90px; }
   font-family: var(--font-display); font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase;
   cursor:pointer; transition: border-color .18s ease, color .18s ease, background .18s ease;
 }
-.inbox-filter-tab:hover{ border-color: var(--accent); color: var(--text); }
+.inbox-filter-tab:hover{ border-color: var(--accent); color: var(--user-font-color); }
 .inbox-filter-tab.active{ border-color: var(--accent); color: var(--accent); background: hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .1); }
 .filter-count{
   display:inline-flex; align-items:center; justify-content:center;
@@ -785,7 +826,7 @@ textarea{ resize: vertical; min-height: 90px; }
 .chat-back-btn{ display:none; }
 
 .convo-row.unread .convo-name{ font-weight:700; }
-.convo-row.unread .convo-preview{ color: var(--text); }
+.convo-row.unread .convo-preview{ color: var(--user-font-color); }
 .convo-unread-dot{ width:9px; height:9px; border-radius:50%; background: var(--accent); margin-left:auto; flex-shrink:0; box-shadow: 0 0 8px var(--accent); }
 .convo-row{ position:relative; gap:12px; }
 .convo-row.active{ background: var(--bg-inset); }
@@ -829,7 +870,7 @@ textarea{ resize: vertical; min-height: 90px; }
   background: linear-gradient(135deg, hsl(var(--gold-h) 30% 14% / .92), var(--bg-raised));
   backdrop-filter: blur(12px);
   border:1px solid var(--line);
-  color: var(--text);
+  color: var(--user-font-color);
   padding: 13px 18px; border-radius: var(--radius);
   font-size:14px; font-weight:500;
   box-shadow: 0 14px 34px var(--shadow);
@@ -869,7 +910,7 @@ textarea{ resize: vertical; min-height: 90px; }
   width:40px; height:40px; border-radius:50%;
   display:inline-flex; align-items:center; justify-content:center;
   background: var(--bg-inset); border:1px solid var(--line);
-  color: var(--text); font-size:17px; cursor:pointer;
+  color: var(--user-font-color); font-size:17px; cursor:pointer;
   transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
 .notif-bell:hover{ border-color: var(--accent); box-shadow: 0 0 16px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .3); transform: translateY(-1px); }
@@ -911,7 +952,7 @@ textarea{ resize: vertical; min-height: 90px; }
 .notif-item{
   display:flex; gap:12px; align-items:flex-start;
   padding: 13px 16px; border-bottom:1px solid var(--line);
-  color: var(--text); transition: background .15s ease;
+  color: var(--user-font-color); transition: background .15s ease;
 }
 .notif-item:last-child{ border-bottom:none; }
 .notif-item:hover{ background: var(--bg-inset); }
@@ -943,7 +984,7 @@ textarea{ resize: vertical; min-height: 90px; }
   font-weight:600;
   transition: background .2s ease, color .2s ease, box-shadow .2s ease;
 }
-.appnav-item:hover{ color: var(--text); }
+.appnav-item:hover{ color: var(--user-font-color); }
 .appnav-item.active{ background: var(--bg-inset); color: var(--accent); box-shadow: 0 0 0 1px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .3); }
 .appnav-icon{ font-size:16px; line-height:1; }
 .appnav-icon-wrap{ position:relative; display:inline-flex; }
@@ -964,9 +1005,14 @@ textarea{ resize: vertical; min-height: 90px; }
 body{ padding-bottom: 0; }
 
 @media (max-width: 720px){
-  body{ padding-bottom: calc(var(--nav-h) + 14px); }
+  /* env(safe-area-inset-bottom) accounts for the gesture bar on modern
+     Android phones (this app installs as a standalone PWA per manifest.json)
+     so the fixed nav — and the content scrolled behind it — never sits
+     under, or gets covered by, the system navigation area. Needs
+     viewport-fit=cover on the <meta name="viewport"> tag to take effect. */
+  body{ padding-bottom: calc(var(--nav-h) + 14px + env(safe-area-inset-bottom, 0px)); }
   #nav-mount{
-    position: fixed; left:10px; right:10px; bottom:10px; z-index: 80;
+    position: fixed; left:10px; right:10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 80;
     background: var(--bg-raised);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
@@ -1073,7 +1119,7 @@ body{ padding-bottom: 0; }
 .menu-list a, .menu-list button{
   display:flex; align-items:center; gap:12px; width:100%;
   padding:15px 6px; border-bottom:1px solid var(--line);
-  color: var(--text); background:none; border-left:none; border-right:none; border-top:none;
+  color: var(--user-font-color); background:none; border-left:none; border-right:none; border-top:none;
   font-family: var(--font-body); font-size:15px; font-weight:500; text-align:left; cursor:pointer;
 }
 .menu-list a:last-child, .menu-list button:last-child{ border-bottom:none; }
@@ -1100,8 +1146,8 @@ body{ padding-bottom: 0; }
   padding:10px 18px; border-radius: var(--radius-pill); border:1px solid var(--line); color: var(--text-muted);
   transition: color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
-.legal-nav a:hover{ color: var(--text); border-color: var(--accent); transform: translateY(-1px); }
-.legal-nav a[data-home-link]{ color: var(--text); border-color: var(--teal-soft); text-transform:none; letter-spacing:normal; font-weight:500; }
+.legal-nav a:hover{ color: var(--user-font-color); border-color: var(--accent); transform: translateY(-1px); }
+.legal-nav a[data-home-link]{ color: var(--user-font-color); border-color: var(--teal-soft); text-transform:none; letter-spacing:normal; font-weight:500; }
 .legal-nav a[data-home-link]:hover{ border-color: var(--teal); }
 .legal-nav a.active{
   color:#0a0620; background: linear-gradient(135deg, var(--accent), var(--teal)); border-color:transparent;
@@ -1118,7 +1164,7 @@ body{ padding-bottom: 0; }
 .legal-card ul{ margin:10px 0; padding-left:0; list-style:none; }
 .legal-card li{ position:relative; padding-left:20px; color: var(--text-muted); font-size:14px; line-height:1.75; margin:7px 0; }
 .legal-card li::before{ content:"✦"; position:absolute; left:0; color: var(--accent); font-size:10px; top:5px; }
-.legal-card strong{ color: var(--text); font-weight:600; }
+.legal-card strong{ color: var(--user-font-color); font-weight:600; }
 .legal-updated{ font-size:12px; color: var(--text-muted); text-align:center; margin-top:20px; }
 
 .contact-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-top:8px; }
@@ -1129,7 +1175,7 @@ body{ padding-bottom: 0; }
 .contact-tile:hover{ transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 10px 24px var(--shadow); }
 .contact-tile .glyph{ font-size:20px; margin-bottom:9px; }
 .contact-tile .label{ font-family: var(--font-display); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color: var(--text-muted); margin-bottom:5px; }
-.contact-tile .value{ font-size:13px; color: var(--text); word-break: break-word; }
+.contact-tile .value{ font-size:13px; color: var(--user-font-color); word-break: break-word; }
 
 .about-values{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-top:12px; }
 .about-value-card{ border:1px solid var(--line); border-radius: var(--radius-lg); padding:20px; background: var(--bg-inset); }
