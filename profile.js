@@ -156,10 +156,6 @@ async function load() {
 /** Fetches this member's received appreciations (see discover.js's Appreciate
  * button) from the separate `appreciations` collection — not a field on this
  * user's own doc, since Firestore rules correctly don't let another member
- * write onto it directly. */
-/** Fetches this member's received appreciations (see discover.js's Appreciate
- * button) from the separate `appreciations` collection — not a field on this
- * user's own doc, since Firestore rules correctly don't let another member
  * write onto it directly. `clearedAt` (my own doc's own field, so I can write
  * it myself) hides anything sent before the last time I hit "Clear all" —
  * the underlying docs stay put, only my own view of them changes. */

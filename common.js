@@ -1,3 +1,39 @@
+const EYE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const EYE_OFF_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+
+/**
+ * Adds a "show password" eye toggle to a password input, wherever it lives
+ * (a static form, or a modal/lock-screen built at runtime by chat.js). Wraps
+ * the input in a small positioning container (`.pw-field` in styles.css) and
+ * inserts a button that flips the field between type="password" and
+ * type="text" — the actual reveal, not just a masked re-display, since the
+ * underlying input value never changes, only how it's rendered.
+ * Idempotent (safe to call twice on the same input) and a no-op if the
+ * element doesn't exist, so call sites don't need to guard for either.
+ */
+export function addPasswordToggle(input) {
+  if (!input || input.dataset.pwToggleAttached) return;
+  input.dataset.pwToggleAttached = "1";
+  const wrap = document.createElement("div");
+  wrap.className = "pw-field";
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(input);
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "pw-toggle";
+  btn.setAttribute("aria-label", "Show password");
+  btn.innerHTML = EYE_ICON;
+  wrap.appendChild(btn);
+  btn.addEventListener("click", () => {
+    const revealed = input.type === "text";
+    input.type = revealed ? "password" : "text";
+    btn.innerHTML = revealed ? EYE_ICON : EYE_OFF_ICON;
+    btn.setAttribute("aria-label", revealed ? "Show password" : "Hide password");
+    // Keep focus + caret in the field after the tap, instead of losing focus to the button.
+    input.focus();
+  });
+}
+
 export function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }

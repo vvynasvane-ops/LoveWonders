@@ -170,7 +170,7 @@
     import { renderNav } from "./nav.js";
     import { startPresence } from "./presence.js";
     import { initNotifications, showToast } from "./notifications.js";
-    import { loaderTrackHtml } from "./common.js";
+    import { loaderTrackHtml, addPasswordToggle } from "./common.js";
     initTheme();
     renderNav("settings");
     document.body.insertAdjacentHTML("beforeend", loaderTrackHtml("Loading Theme"));
@@ -200,6 +200,7 @@
     });
 
     // ---- Password & security ----
+    ["#pw-current", "#pw-new", "#pw-confirm"].forEach(sel => addPasswordToggle(document.querySelector(sel)));
     const pwError = document.querySelector("#pw-error");
     const showPwError = msg => { pwError.textContent = msg; pwError.style.display = "block"; };
     document.querySelector("#pw-update-btn").addEventListener("click", async () => {

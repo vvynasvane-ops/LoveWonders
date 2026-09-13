@@ -2,7 +2,7 @@ import {
   db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp,
   doc, setDoc, where
 } from "./firebase-init.js";
-import { loaderHtml, loaderStreamHtml, isOnlineNow, activityLabel } from "./common.js";
+import { loaderHtml, loaderStreamHtml, isOnlineNow, activityLabel, addPasswordToggle } from "./common.js";
 import { showToast } from "./notifications.js";
 import { hashPin } from "./crypto-utils.js";
 
@@ -93,6 +93,7 @@ function showPinModal(mountEl, { title, body, confirmLabel = "Continue" }) {
       </div>`;
     mountEl.appendChild(wrap);
     const input = wrap.querySelector(".chat-pin-input");
+    addPasswordToggle(input);
     input.focus();
     const done = val => { wrap.remove(); resolve(val); };
     wrap.querySelector('[data-act="cancel"]').addEventListener("click", () => done(null));
@@ -228,6 +229,7 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
     const pinInput = lockScreen.querySelector("#chat-lock-input");
     const errEl = lockScreen.querySelector("#chat-lock-error");
     const unlockBtn = lockScreen.querySelector("#chat-lock-unlock-btn");
+    addPasswordToggle(pinInput);
     setTimeout(() => pinInput.focus(), 50);
     const tryUnlock = async () => {
       const ok = await checkThreadPin(tid, myUid, pinInput.value.trim());
@@ -500,10 +502,6 @@ export function closeChat() {
   if (statusTickInterval) { clearInterval(statusTickInterval); statusTickInterval = null; }
 }
 
-/**
- * Lists my conversation threads, most recent first. Used by the Messages inbox.
- * Returns an unsubscribe function; cb receives an array of thread docs.
- */
 /**
  * Lists my conversation threads, most recent first. Used by the Messages inbox.
  * cb(list) fires on every update. onError(err), if given, fires if the listener

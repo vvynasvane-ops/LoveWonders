@@ -4,7 +4,7 @@ import {
   doc, setDoc, getDoc, serverTimestamp
 } from "./firebase-init.js";
 import { generateIdCode } from "./crypto-utils.js";
-import { generateMemberNo, loaderBlobHtml } from "./common.js";
+import { generateMemberNo, loaderBlobHtml, addPasswordToggle } from "./common.js";
 import { showToast } from "./notifications.js";
 
 const form = document.querySelector("#auth-form");
@@ -16,6 +16,7 @@ const ageCheckbox = document.querySelector("#age-consent");
 const submitBtn = document.querySelector("#auth-submit");
 const errorBox = document.querySelector("#auth-error");
 const forgotLink = document.querySelector("#forgot-link");
+addPasswordToggle(document.querySelector("#password"));
 let mode = "login";
 
 function setMode(next) {
