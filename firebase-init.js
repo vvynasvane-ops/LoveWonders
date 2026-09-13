@@ -2,7 +2,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import {
   getAuth, onAuthStateChanged, GoogleAuthProvider,
   signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  signOut, updateProfile, sendPasswordResetEmail
+  signOut, updateProfile, sendPasswordResetEmail,
+  updatePassword, reauthenticateWithCredential, EmailAuthProvider
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   initializeFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs,
@@ -25,6 +26,7 @@ export const googleProvider = new GoogleAuthProvider();
 export {
   onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword,
   createUserWithEmailAndPassword, signOut, updateProfile, sendPasswordResetEmail,
+  updatePassword, reauthenticateWithCredential, EmailAuthProvider,
   doc, setDoc, getDoc, updateDoc, collection, getDocs,
   query, orderBy, limit, addDoc, onSnapshot, serverTimestamp, where,
   arrayUnion, arrayRemove, increment

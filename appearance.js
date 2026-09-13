@@ -1,19 +1,36 @@
 // ------------------------------------------------------------------
-// Appearance settings — font, blur, and background image.
-// Saved to localStorage (per device) and applied via CSS variables
-// (see :root in styles.css) so every page picks them up the moment
-// initAppearance() runs, same pattern as theme.js's accent/mode.
+// Appearance settings — font, whole-page background blur, and
+// background image (curated presets or a photo from the user's own
+// device). Saved to localStorage (per device) and applied via CSS
+// variables (see :root in styles.css), same pattern as theme.js's
+// accent/mode, so every page picks them up the moment
+// initAppearance() runs.
 // ------------------------------------------------------------------
 import { showToast } from "./notifications.js";
 
 const root = document.documentElement;
 const STORE_KEY = "lw-appearance";
+const CUSTOM_BG_KEY = "lw-appearance-bg-custom"; // kept separate from the settings blob — it's much bigger
 
 const FONT_STACKS = {
   rajdhani: "'Rajdhani', -apple-system, sans-serif",
   poppins: "'Poppins', -apple-system, sans-serif",
   playfair: "'Playfair Display', Georgia, serif",
-  quicksand: "'Quicksand', -apple-system, sans-serif"
+  quicksand: "'Quicksand', -apple-system, sans-serif",
+  nunito: "'Nunito', -apple-system, sans-serif",
+  dancing: "'Dancing Script', cursive",
+  merriweather: "'Merriweather', Georgia, serif",
+  spacegrotesk: "'Space Grotesk', -apple-system, sans-serif"
+};
+export const FONT_LABELS = {
+  rajdhani: "Rajdhani (default)",
+  poppins: "Poppins — clean & modern",
+  playfair: "Playfair Display — elegant serif",
+  quicksand: "Quicksand — soft & friendly",
+  nunito: "Nunito — warm & rounded",
+  dancing: "Dancing Script — romantic script",
+  merriweather: "Merriweather — classic reading serif",
+  spacegrotesk: "Space Grotesk — sleek & techy"
 };
 
 // Gradient-only "photos" tuned to the app's own palette — no external
@@ -31,7 +48,7 @@ const BG_PRESETS = {
           radial-gradient(circle at 86% 14%, hsl(255 78% 46% / .32), transparent 45%),
           radial-gradient(circle at 50% 50%, hsl(200 75% 40% / .16), transparent 62%)`
 };
-export const BG_PRESET_LABELS = { none: "None (default)", aurora: "Aurora Deep", rose: "Rosé Dusk", bloom: "Midnight Bloom" };
+export const BG_PRESET_LABELS = { none: "None (default)", aurora: "Aurora Deep", rose: "Rosé Dusk", bloom: "Midnight Bloom", custom: "Your photo" };
 
 const DEFAULTS = {
   family: "rajdhani", size: 16, weight: 400, spacing: 0, lineHeight: 1.5,
@@ -44,14 +61,46 @@ function load() {
 }
 function save(state) { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 
-function apply(state) {
+function backgroundImageFor(state, customDataUrl) {
+  if (state.bg === "custom") return customDataUrl ? `url("${customDataUrl}")` : BG_PRESETS.none;
+  return BG_PRESETS[state.bg] || BG_PRESETS.none;
+}
+
+function apply(state, customDataUrl) {
   root.style.setProperty("--user-font-family", FONT_STACKS[state.family] || FONT_STACKS.rajdhani);
   root.style.setProperty("--user-font-size", state.size + "px");
   root.style.setProperty("--user-font-weight", state.weight);
   root.style.setProperty("--user-letter-spacing", state.spacing + "px");
   root.style.setProperty("--user-line-height", state.lineHeight);
+  // This blurs the whole fixed background layer (body::before in
+  // styles.css), not just the strip of it that happens to sit behind a
+  // card — a slider that only softened whatever was directly under a
+  // panel looked like it wasn't doing anything most of the time.
   root.style.setProperty("--glass-blur", state.blur + "px");
-  root.style.setProperty("--bg-preset-image", BG_PRESETS[state.bg] || BG_PRESETS.none);
+  root.style.setProperty("--bg-preset-image", backgroundImageFor(state, customDataUrl));
+}
+
+/** Downscales an uploaded photo before it goes anywhere near localStorage
+ *  (device storage quotas are typically 5–10MB total, shared with
+ *  everything else the app stores) — long edge capped at 1600px, saved
+ *  as a compressed JPEG data URL. */
+function downscaleImage(file, maxEdge = 1600, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => { img.src = reader.result; };
+    img.onerror = () => reject(new Error("Couldn't read that image."));
+    img.onload = () => {
+      const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 /** Call once per page (alongside initTheme()) to apply saved appearance
@@ -59,7 +108,9 @@ function apply(state) {
  *  them up live. Safe to call on pages without any of these elements. */
 export function initAppearance() {
   const state = load();
-  apply(state);
+  let customDataUrl = null;
+  try { customDataUrl = localStorage.getItem(CUSTOM_BG_KEY); } catch {}
+  apply(state, customDataUrl);
 
   const persistAndToast = (label) => {
     save(state);
@@ -72,7 +123,7 @@ export function initAppearance() {
     familySel.value = state.family;
     familySel.addEventListener("change", () => {
       state.family = familySel.value;
-      apply(state);
+      apply(state, customDataUrl);
       persistAndToast("Font");
     });
   }
@@ -93,7 +144,7 @@ export function initAppearance() {
     if (label) label.textContent = state[key] + unit;
     input.addEventListener("input", () => {
       state[key] = key === "lineHeight" ? parseFloat(input.value) : Number(input.value);
-      apply(state);
+      apply(state, customDataUrl);
       if (label) label.textContent = state[key] + unit;
     });
     input.addEventListener("change", () => persistAndToast("Appearance"));
@@ -101,15 +152,63 @@ export function initAppearance() {
 
   // Background image presets — a row of swatch buttons
   const bgButtons = document.querySelectorAll("[data-bg-preset]");
+  const customSwatch = document.querySelector("#bg-custom-swatch");
+  const customThumbIcon = document.querySelector("#bg-custom-thumb-icon");
+  function markActiveSwatch() {
+    bgButtons.forEach(b => b.classList.toggle("active", b.dataset.bgPreset === state.bg));
+    if (customSwatch) customSwatch.classList.toggle("active", state.bg === "custom");
+  }
+  function paintCustomThumb() {
+    if (!customSwatch) return;
+    if (customDataUrl) {
+      customSwatch.style.backgroundImage = `url("${customDataUrl}")`;
+      customSwatch.style.backgroundSize = "cover";
+      customSwatch.style.backgroundPosition = "center";
+      if (customThumbIcon) customThumbIcon.style.display = "none";
+    } else {
+      customSwatch.style.backgroundImage = "none";
+      if (customThumbIcon) customThumbIcon.style.display = "block";
+    }
+  }
   if (bgButtons.length) {
     bgButtons.forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.bgPreset === state.bg);
       btn.addEventListener("click", () => {
         state.bg = btn.dataset.bgPreset;
-        apply(state);
-        bgButtons.forEach(b => b.classList.toggle("active", b === btn));
+        apply(state, customDataUrl);
+        markActiveSwatch();
         persistAndToast("Background");
       });
+    });
+    markActiveSwatch();
+  }
+
+  // Background image from the user's own device
+  const bgUpload = document.querySelector("#appearance-bg-upload");
+  if (bgUpload) {
+    paintCustomThumb();
+    bgUpload.addEventListener("change", async () => {
+      const file = bgUpload.files[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) { showToast("Pick an image file.", { type: "error" }); return; }
+      try {
+        const dataUrl = await downscaleImage(file);
+        localStorage.setItem(CUSTOM_BG_KEY, dataUrl);
+        customDataUrl = dataUrl;
+        state.bg = "custom";
+        apply(state, customDataUrl);
+        markActiveSwatch();
+        paintCustomThumb();
+        save(state);
+        showToast("Background photo saved to this device.", { type: "success" });
+      } catch (err) {
+        console.error("Background upload failed:", err);
+        // Most likely cause: localStorage quota exceeded even after
+        // downscaling (an old custom photo plus a new one, on a device
+        // already near its storage limit).
+        showToast("Couldn't save that photo — try a smaller image.", { type: "error" });
+      } finally {
+        bgUpload.value = "";
+      }
     });
   }
 
@@ -118,7 +217,9 @@ export function initAppearance() {
   if (resetBtn) {
     resetBtn.addEventListener("click", () => {
       Object.assign(state, DEFAULTS);
-      apply(state);
+      customDataUrl = null;
+      try { localStorage.removeItem(CUSTOM_BG_KEY); } catch {}
+      apply(state, customDataUrl);
       save(state);
       if (familySel) familySel.value = state.family;
       ranges.forEach(([id, key, unit]) => {
@@ -127,7 +228,8 @@ export function initAppearance() {
         if (input) input.value = state[key];
         if (label) label.textContent = state[key] + unit;
       });
-      bgButtons.forEach(b => b.classList.toggle("active", b.dataset.bgPreset === "none"));
+      markActiveSwatch();
+      paintCustomThumb();
       showToast("Appearance reset to defaults", { type: "success", duration: 2000 });
     });
   }

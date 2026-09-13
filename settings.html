@@ -73,6 +73,10 @@
         <option value="poppins">Poppins — clean &amp; modern</option>
         <option value="playfair">Playfair Display — elegant serif</option>
         <option value="quicksand">Quicksand — soft &amp; friendly</option>
+        <option value="nunito">Nunito — warm &amp; rounded</option>
+        <option value="dancing">Dancing Script — romantic script</option>
+        <option value="merriweather">Merriweather — classic reading serif</option>
+        <option value="spacegrotesk">Space Grotesk — sleek &amp; techy</option>
       </select>
 
       <label>Text size</label>
@@ -86,18 +90,43 @@
 
       <div class="gilt-rule"></div>
 
-      <label>Background blur <span class="field-hint" style="display:inline;">— higher keeps panels readable over a busy background</span></label>
-      <div class="rgb-row"><input id="appearance-blur" type="range" min="0" max="24" step="2"><span id="appearance-blur-val">10px</span></div>
-
       <label>Background</label>
       <div class="bg-preset-row">
         <button type="button" class="bg-swatch bg-swatch-none" data-bg-preset="none" title="None (default)"></button>
         <button type="button" class="bg-swatch bg-swatch-aurora" data-bg-preset="aurora" title="Aurora Deep"></button>
         <button type="button" class="bg-swatch bg-swatch-rose" data-bg-preset="rose" title="Rosé Dusk"></button>
         <button type="button" class="bg-swatch bg-swatch-bloom" data-bg-preset="bloom" title="Midnight Bloom"></button>
+        <label class="bg-swatch bg-swatch-custom" id="bg-custom-swatch" title="Upload your own photo">
+          <span id="bg-custom-thumb-icon">+</span>
+          <input type="file" id="appearance-bg-upload" accept="image/*" hidden>
+        </label>
       </div>
+      <p class="field-hint" id="bg-custom-hint">Tap + to use a photo from your device. Stored on this device only.</p>
+
+      <div class="gilt-rule"></div>
+
+      <label>Background blur <span class="field-hint" style="display:inline;">— blurs the whole background, like a soft-focus photo</span></label>
+      <div class="rgb-row"><input id="appearance-blur" type="range" min="0" max="24" step="2"><span id="appearance-blur-val">10px</span></div>
 
       <button type="button" id="appearance-reset-btn" class="btn ghost small block" style="margin-top:16px;">Reset appearance to defaults</button>
+    </div>
+
+    <div class="card" style="max-width:480px; margin-top:18px;">
+      <h3 class="mt-0">Password &amp; security</h3>
+      <div id="pw-google-note" style="display:none;">
+        <p class="muted" style="font-size:13px;">You signed in with Google, so there's no Love Wonders password to change — manage it from your Google Account instead.</p>
+      </div>
+      <div id="pw-email-form">
+        <label>Current password</label>
+        <input id="pw-current" type="password" autocomplete="current-password" placeholder="Current password">
+        <label>New password</label>
+        <input id="pw-new" type="password" autocomplete="new-password" placeholder="At least 6 characters">
+        <label>Confirm new password</label>
+        <input id="pw-confirm" type="password" autocomplete="new-password" placeholder="Retype new password">
+        <p class="field-hint" id="pw-error" style="display:none; color:#ff9ab3;"></p>
+        <button type="button" id="pw-update-btn" class="btn small block" style="margin-top:10px;">Update password</button>
+        <button type="button" id="pw-forgot-btn" class="btn ghost small block" style="margin-top:8px;">Email me a reset link instead</button>
+      </div>
     </div>
 
     <div class="card" style="max-width:480px; margin-top:18px;">
@@ -117,11 +146,11 @@
   </div>
 
   <script type="module">
-    import { requireAuth, auth, signOut, db, doc, getDoc } from "./firebase-init.js";
+    import { requireAuth, auth, signOut, db, doc, getDoc, sendPasswordResetEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "./firebase-init.js";
     import { initTheme } from "./theme.js";
     import { renderNav } from "./nav.js";
     import { startPresence } from "./presence.js";
-    import { initNotifications } from "./notifications.js";
+    import { initNotifications, showToast } from "./notifications.js";
     import { loaderTrackHtml } from "./common.js";
     initTheme();
     renderNav("settings");
@@ -131,6 +160,12 @@
       const snap = await getDoc(doc(db, "users", user.uid));
       initNotifications(user.uid, (snap.data() || {}).preferences);
       document.querySelector(".loader-page")?.remove();
+
+      // Password change only makes sense for email/password accounts —
+      // a Google-only sign-in has no Love Wonders password to update.
+      const hasPasswordProvider = user.providerData.some(p => p.providerId === "password");
+      document.querySelector("#pw-google-note").style.display = hasPasswordProvider ? "none" : "block";
+      document.querySelector("#pw-email-form").style.display = hasPasswordProvider ? "block" : "none";
     }).catch(err => {
       console.error("Settings load failed:", err);
       document.querySelector(".loader-page")?.remove();
@@ -143,6 +178,50 @@
       const input = document.querySelector(`#rgb-${c}`);
       const label = document.querySelector(`#rgb-${c}-val`);
       input.addEventListener("input", () => (label.textContent = input.value));
+    });
+
+    // ---- Password & security ----
+    const pwError = document.querySelector("#pw-error");
+    const showPwError = msg => { pwError.textContent = msg; pwError.style.display = "block"; };
+    document.querySelector("#pw-update-btn").addEventListener("click", async () => {
+      pwError.style.display = "none";
+      const current = document.querySelector("#pw-current").value;
+      const next = document.querySelector("#pw-new").value;
+      const confirm = document.querySelector("#pw-confirm").value;
+      if (!current) return showPwError("Enter your current password.");
+      if (next.length < 6) return showPwError("New password needs to be at least 6 characters.");
+      if (next !== confirm) return showPwError("New passwords don't match.");
+      const btn = document.querySelector("#pw-update-btn");
+      btn.disabled = true; btn.textContent = "Updating…";
+      try {
+        // Firebase requires a recent sign-in for sensitive changes like this —
+        // re-authenticating with the current password satisfies that even if
+        // the session has been open a while.
+        const cred = EmailAuthProvider.credential(auth.currentUser.email, current);
+        await reauthenticateWithCredential(auth.currentUser, cred);
+        await updatePassword(auth.currentUser, next);
+        document.querySelector("#pw-current").value = "";
+        document.querySelector("#pw-new").value = "";
+        document.querySelector("#pw-confirm").value = "";
+        showToast("Password updated.", { type: "success" });
+      } catch (err) {
+        console.error("Password update failed:", err);
+        const code = err.code || "";
+        if (code.includes("wrong-password") || code.includes("invalid-credential")) showPwError("Current password is incorrect.");
+        else if (code.includes("too-many-requests")) showPwError("Too many attempts — try again in a bit.");
+        else showPwError("Couldn't update your password — try again.");
+      } finally {
+        btn.disabled = false; btn.textContent = "Update password";
+      }
+    });
+    document.querySelector("#pw-forgot-btn").addEventListener("click", async () => {
+      try {
+        await sendPasswordResetEmail(auth, auth.currentUser.email);
+        showToast(`Reset link sent to ${auth.currentUser.email}`, { type: "success" });
+      } catch (err) {
+        console.error("Reset email failed:", err);
+        showToast("Couldn't send the reset email — try again.", { type: "error" });
+      }
     });
   </script>
 </body>
