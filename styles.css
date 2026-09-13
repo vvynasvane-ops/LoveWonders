@@ -10,7 +10,7 @@
    sharp corner anymore.
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&family=Rajdhani:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&family=Rajdhani:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap');
 
 :root{
   --gold-h: 265;     /* primary accent hue/sat/light — violet plasma. The RGB picker rewrites these live. */
@@ -42,6 +42,16 @@
   --radius-sm: 12px;
   --radius-pill: 999px;
   --nav-h: 66px;
+
+  /* ---- user-adjustable appearance (Settings → Appearance), read live by
+     appearance.js and applied on every page ---- */
+  --user-font-family: var(--font-body);
+  --user-font-size: 16px;
+  --user-font-weight: 400;
+  --user-letter-spacing: 0px;
+  --user-line-height: 1.5;
+  --glass-blur: 10px;
+  --bg-preset-image: none;
 }
 
 [data-mode="light"]{
@@ -61,13 +71,24 @@ html,body{ margin:0; padding:0; }
 body{
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-body);
-  font-size: 16px;
+  font-family: var(--user-font-family);
+  font-size: var(--user-font-size);
+  font-weight: var(--user-font-weight);
+  letter-spacing: var(--user-letter-spacing);
   min-height: 100vh;
   transition: background .3s ease, color .3s ease;
-  line-height: 1.5;
+  line-height: var(--user-line-height);
   animation: page-fade-in .5s ease both;
   position: relative;
+}
+/* User-chosen background image/gradient — a fixed layer behind the
+   starfield and all content. None of the three presets are photos (no
+   external assets to fetch or license), just tuned gradients in the
+   app's own palette, so they always match the current accent/mode. */
+body::before{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image: var(--bg-preset-image);
+  transition: background-image .5s ease;
 }
 
 /* ---- cosmic starfield canvas, injected by starfield.js — behind everything, non-interactive ---- */
@@ -306,7 +327,11 @@ a{ color: var(--accent); text-decoration: none; }
   gap: 14px;
   padding: 20px 0;
   border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 200;
+  background: hsl(var(--gold-h) 40% 6% / .82);
+  backdrop-filter: blur(var(--glass-blur, 10px));
 }
+[data-mode="light"] .topbar{ background: hsl(0 0% 100% / .86); }
 .brand{
   font-family: var(--font-display);
   font-size: 20px;
@@ -409,6 +434,29 @@ textarea{ resize: vertical; min-height: 90px; }
 
 .field-hint{ font-size:12px; color: var(--text-muted); margin-top:4px; }
 
+.bg-preset-row{ display:flex; gap:12px; margin-top:8px; }
+.bg-swatch{
+  width:56px; height:56px; border-radius: var(--radius-md, 14px);
+  border:2px solid var(--line); cursor:pointer; position:relative;
+  background-color: var(--bg-inset);
+  transition: border-color .15s ease, transform .15s ease;
+}
+.bg-swatch:hover{ transform: translateY(-2px); }
+.bg-swatch.active{ border-color: var(--accent); box-shadow: 0 0 0 2px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .3); }
+.bg-swatch.active::after{ content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; text-shadow:0 1px 3px rgba(0,0,0,.6); }
+.bg-swatch-aurora{ background-image:
+  radial-gradient(ellipse 60% 50% at 18% 15%, hsl(265 85% 42% / .8), transparent 60%),
+  radial-gradient(ellipse 55% 45% at 82% 25%, hsl(189 85% 45% / .7), transparent 60%),
+  radial-gradient(ellipse 70% 55% at 50% 95%, hsl(265 80% 22% / .9), transparent 65%); }
+.bg-swatch-rose{ background-image:
+  radial-gradient(ellipse 60% 50% at 20% 12%, hsl(332 78% 46% / .8), transparent 60%),
+  radial-gradient(ellipse 55% 50% at 85% 78%, hsl(18 82% 50% / .7), transparent 60%),
+  radial-gradient(ellipse 70% 55% at 50% 100%, hsl(285 55% 28% / .85), transparent 65%); }
+.bg-swatch-bloom{ background-image:
+  radial-gradient(circle at 14% 82%, hsl(302 82% 46% / .75), transparent 45%),
+  radial-gradient(circle at 86% 14%, hsl(255 78% 46% / .75), transparent 45%),
+  radial-gradient(circle at 50% 50%, hsl(200 75% 40% / .5), transparent 62%); }
+
 /* ---- cards: glassy panels with a soft glowing edge ---- */
 .card{
   background: linear-gradient(180deg, hsl(var(--gold-h) 30% 12% / .5), var(--bg-raised));
@@ -416,7 +464,7 @@ textarea{ resize: vertical; min-height: 90px; }
   border-radius: var(--radius-lg);
   padding: 28px;
   animation: rise-in .45s ease both;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(var(--glass-blur));
   box-shadow: 0 20px 50px var(--shadow);
   position: relative;
 }
@@ -580,12 +628,13 @@ textarea{ resize: vertical; min-height: 90px; }
 .chat-header-name{ font-family: var(--font-display); font-size:13px; font-weight:600; letter-spacing:.02em; line-height:1.2; }
 .chat-header-status{ font-size:11px; color: var(--text-muted); display:flex; align-items:center; gap:5px; }
 .status-dot{ width:7px; height:7px; border-radius:50%; background: var(--teal); animation: dot-pulse 2.2s ease infinite; }
+.status-dot.offline{ background: var(--text-muted); animation:none; opacity:.6; }
 .chat-menu-wrap{ position:relative; margin-left:auto; flex-shrink:0; }
 .chat-menu-btn{ white-space:nowrap; }
 .chat-menu{
   position:absolute; top:calc(100% + 8px); right:0; min-width:190px;
   background: linear-gradient(180deg, hsl(var(--gold-h) 30% 12% / .96), var(--bg-raised));
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(var(--glass-blur));
   border:1px solid var(--line); border-radius: var(--radius-lg);
   box-shadow: 0 24px 50px var(--shadow); overflow:hidden; z-index:60;
   opacity:0; transform: translateY(-8px) scale(.97); pointer-events:none;
@@ -821,7 +870,7 @@ textarea{ resize: vertical; min-height: 90px; }
   position:absolute; top:calc(100% + 12px); right:0;
   width:320px; max-width: calc(100vw - 40px);
   background: linear-gradient(180deg, hsl(var(--gold-h) 30% 12% / .96), var(--bg-raised));
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(var(--glass-blur));
   border:1px solid var(--line);
   border-radius: var(--radius-lg);
   box-shadow: 0 24px 50px var(--shadow);
@@ -858,6 +907,13 @@ textarea{ resize: vertical; min-height: 90px; }
 .notif-empty{ padding: 24px 16px; text-align:center; font-size:13px; color: var(--text-muted); margin:0; }
 
 /* ---- shared app nav (renders via nav.js into #nav-mount) ---- */
+#nav-mount{
+  position: sticky; top: var(--topbar-h, 64px); z-index: 190;
+  background: hsl(var(--gold-h) 40% 6% / .82);
+  backdrop-filter: blur(var(--glass-blur, 10px));
+  margin: 0 -24px; padding: 0 24px;
+}
+[data-mode="light"] #nav-mount{ background: hsl(0 0% 100% / .86); }
 .appnav{
   display:flex; gap:6px; align-items:center;
   padding: 10px 0;

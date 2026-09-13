@@ -30,6 +30,20 @@ export function renderNav(activeId) {
       <span class="appnav-label">${item.label}</span>
     </a>`).join("")}</nav>`;
   paintBadge();
+  syncTopbarHeightVar();
+}
+
+// The nav row sticks directly under the top bar (see #nav-mount in
+// styles.css, which reads --topbar-h). The top bar's real height shifts
+// with font-size/weight settings and viewport width, so it's measured
+// live rather than hardcoded — kept in sync on load and on resize.
+function syncTopbarHeightVar() {
+  const topbar = document.querySelector(".topbar");
+  if (!topbar) return;
+  const set = () => document.documentElement.style.setProperty("--topbar-h", `${topbar.offsetHeight}px`);
+  set();
+  window.addEventListener("resize", set);
+  if (window.ResizeObserver) new ResizeObserver(set).observe(topbar);
 }
 
 /**

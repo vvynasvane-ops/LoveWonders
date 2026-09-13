@@ -2,13 +2,15 @@ import {
   db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp,
   doc, setDoc, where
 } from "./firebase-init.js";
-import { loaderHtml, loaderStreamHtml } from "./common.js";
+import { loaderHtml, loaderStreamHtml, isOnlineNow, activityLabel } from "./common.js";
 import { showToast } from "./notifications.js";
 import { hashPin } from "./crypto-utils.js";
 
 let unsubMessages = null;
 let unsubTyping = null;
+let unsubPresence = null;
 let typingTickInterval = null;
+let statusTickInterval = null;
 let lastTypingPingAt = 0;
 
 export function threadId(uidA, uidB) {
@@ -139,7 +141,7 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
         <img src="${otherPhoto}" alt="">
         <div>
           <div class="chat-header-name">${escapeHtml(otherName)}</div>
-          <div class="chat-header-status"><span class="status-dot"></span>Active on Love Wonders</div>
+          <div class="chat-header-status" id="chat-header-status"><span class="status-dot offline"></span>…</div>
         </div>
         <div class="chat-menu-wrap">
           <button id="chat-menu-btn" class="btn ghost small chat-menu-btn" type="button" aria-haspopup="true" aria-expanded="false" title="Chat options">Options &#9662;</button>
@@ -366,6 +368,28 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
   // send another typing update or a message.
   typingTickInterval = setInterval(syncTypingIndicator, 1000);
 
+  // The header used to hardcode "Active on Love Wonders" for every
+  // conversation regardless of whether the other person was actually
+  // online — a real presence label, sourced from the same lastActive
+  // timestamp Discover already uses, replaces that static, misleading text.
+  const statusEl = mountEl.querySelector("#chat-header-status");
+  let lastPresenceData = null;
+  function paintStatus(data) {
+    if (!statusEl) return;
+    const showStatus = data?.showOnlineStatus !== false;
+    const online = showStatus && isOnlineNow(data?.lastActive);
+    statusEl.innerHTML = `<span class="status-dot ${online ? "" : "offline"}"></span>${
+      showStatus ? activityLabel(data?.lastActive) : "Love Wonders member"
+    }`;
+  }
+  unsubPresence = onSnapshot(doc(db, "users", otherUid), snap => {
+    lastPresenceData = snap.data();
+    paintStatus(lastPresenceData);
+  }, err => console.error("Presence listener failed:", err));
+  // activityLabel() phrases like "Active 3m ago" go stale without a
+  // repaint of their own — nothing else re-renders this line as time passes.
+  statusTickInterval = setInterval(() => paintStatus(lastPresenceData), 30000);
+
   const send = async () => {
     const text = input.value.trim();
     if (!text) return;
@@ -471,7 +495,9 @@ function placeholderAvatar() {
 export function closeChat() {
   if (unsubMessages) { unsubMessages(); unsubMessages = null; }
   if (unsubTyping) { unsubTyping(); unsubTyping = null; }
+  if (unsubPresence) { unsubPresence(); unsubPresence = null; }
   if (typingTickInterval) { clearInterval(typingTickInterval); typingTickInterval = null; }
+  if (statusTickInterval) { clearInterval(statusTickInterval); statusTickInterval = null; }
 }
 
 /**
