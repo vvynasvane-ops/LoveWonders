@@ -142,3 +142,11 @@ function friendlyError(err) {
 onAuthStateChanged(auth, (user) => {
   if (user) window.location.href = "discover.html";
 });
+
+// Land here via index.html?deleted=1 right after Settings' Danger zone
+// finishes deleting the account — a short, one-time farewell instead of
+// silently dumping them back on the login screen with no acknowledgment.
+if (new URLSearchParams(window.location.search).get("deleted") === "1") {
+  showToast("Your account has been deleted. Take care.", { type: "info", duration: 5000 });
+  window.history.replaceState({}, "", "index.html");
+}

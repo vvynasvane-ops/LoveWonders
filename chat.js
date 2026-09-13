@@ -133,7 +133,7 @@ function fmtDay(ts) {
 export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
   closeChat();
   lastTypingPingAt = 0; // don't carry a previous conversation's throttle window into this one
-  const otherName = otherUser.name || "them";
+  const otherName = otherUser.name || (otherUser.deleted ? "Deleted account" : "them");
   const otherPhoto = otherUser.photoURL || placeholderAvatar();
 
   mountEl.innerHTML = `
@@ -162,7 +162,7 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
       <div id="chat-log" class="chat-log"></div>
       <div id="chat-send-status" class="chat-send-status"></div>
       <div class="chat-input-row">
-        <textarea id="chat-text" rows="1" placeholder="Message ${escapeHtml(otherName)}…"></textarea>
+        <textarea id="chat-text" rows="1" placeholder="${otherUser.deleted ? "This account has been deleted" : `Message ${escapeHtml(otherName)}…`}" ${otherUser.deleted ? "disabled" : ""}></textarea>
         <button id="chat-send" class="chat-send-btn" type="button" aria-label="Send" disabled>&#10148;</button>
       </div>
     </div>`;
@@ -384,13 +384,19 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
       showStatus ? activityLabel(data?.lastActive) : "Love Wonders member"
     }`;
   }
-  unsubPresence = onSnapshot(doc(db, "users", otherUid), snap => {
-    lastPresenceData = snap.data();
-    paintStatus(lastPresenceData);
-  }, err => console.error("Presence listener failed:", err));
-  // activityLabel() phrases like "Active 3m ago" go stale without a
-  // repaint of their own — nothing else re-renders this line as time passes.
-  statusTickInterval = setInterval(() => paintStatus(lastPresenceData), 30000);
+  // A deleted account has no doc left to watch — skip the listener entirely
+  // and just say so plainly, instead of quietly showing a blank status line.
+  if (otherUser.deleted) {
+    if (statusEl) statusEl.innerHTML = `<span class="status-dot offline"></span>No longer on Love Wonders`;
+  } else {
+    unsubPresence = onSnapshot(doc(db, "users", otherUid), snap => {
+      lastPresenceData = snap.data();
+      paintStatus(lastPresenceData);
+    }, err => console.error("Presence listener failed:", err));
+    // activityLabel() phrases like "Active 3m ago" go stale without a
+    // repaint of their own — nothing else re-renders this line as time passes.
+    statusTickInterval = setInterval(() => paintStatus(lastPresenceData), 30000);
+  }
 
   const send = async () => {
     const text = input.value.trim();

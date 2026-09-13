@@ -446,6 +446,9 @@ a{ color: var(--accent); text-decoration: none; }
 .btn.block{ width:100%; }
 .btn.small{ padding:9px 18px; font-size:11px; }
 .btn.danger{ border-color:#c25a7a; background:transparent; color:#ff9ab3; box-shadow:none; }
+.btn.danger:not(:disabled):hover{ background: hsl(340 60% 50% / .12); box-shadow: 0 0 16px hsl(340 70% 55% / .2); }
+
+.card.danger-zone{ border-color: hsl(340 55% 50% / .35); }
 
 label{ display:block; font-size: 13px; font-weight:600; letter-spacing:.02em; color: var(--text-muted); margin: 16px 0 6px; }
 input, textarea, select{

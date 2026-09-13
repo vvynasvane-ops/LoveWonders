@@ -32,7 +32,12 @@ async function otherUserOf(t) {
   const otherUid = t.participants.find(u => u !== me.uid);
   if (!userCache.has(otherUid)) {
     const snap = await getDoc(doc(db, "users", otherUid));
-    userCache.set(otherUid, { uid: otherUid, ...(snap.data() || {}) });
+    // A missing doc here means that member deleted their account (see the
+    // Danger zone in settings.html) — their profile is gone everywhere, but
+    // this thread's messages still belong to *us*, so we keep showing the
+    // conversation rather than hiding it, just with a clear "no longer here"
+    // label instead of a confusing blank "Member".
+    userCache.set(otherUid, { uid: otherUid, deleted: !snap.exists(), ...(snap.data() || {}) });
   }
   return userCache.get(otherUid);
 }
@@ -82,7 +87,7 @@ async function render() {
       <div class="convo-row ${unread ? "unread" : ""} ${t.id === activeTid ? "active" : ""}" data-tid="${t.id}" data-uid="${other.uid}">
         <img src="${other.photoURL || placeholderPhoto()}" alt="">
         <div class="convo-text-col">
-          <div class="convo-name">${escapeHtml(other.name || "Member")} ${unread ? `<span class="convo-new-pill">New</span>` : ""}</div>
+          <div class="convo-name">${escapeHtml(other.name || (other.deleted ? "Deleted account" : "Member"))} ${unread ? `<span class="convo-new-pill">New</span>` : ""}</div>
           <div class="convo-preview ${locked ? "locked" : ""}">${preview}</div>
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
@@ -112,7 +117,7 @@ function openConversation(tid, otherUid) {
   chatMount.style.display = "block";
   chatPanelWrap.classList.add("open");
   inboxPanel.classList.add("hide-on-mobile");
-  openChat(chatMount, me.uid, otherUid, { name: other.name, photoURL: other.photoURL });
+  openChat(chatMount, me.uid, otherUid, { name: other.name, photoURL: other.photoURL, deleted: other.deleted });
   render();
 
   if (!chatMount.querySelector(".chat-back-btn")) {

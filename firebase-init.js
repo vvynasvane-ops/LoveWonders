@@ -3,10 +3,11 @@ import {
   getAuth, onAuthStateChanged, GoogleAuthProvider,
   signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut, updateProfile, sendPasswordResetEmail,
-  updatePassword, reauthenticateWithCredential, EmailAuthProvider
+  updatePassword, reauthenticateWithCredential, reauthenticateWithPopup, EmailAuthProvider,
+  deleteUser
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  initializeFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs,
+  initializeFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs,
   query, orderBy, limit, addDoc, onSnapshot, serverTimestamp, where,
   arrayUnion, arrayRemove, increment
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -26,8 +27,9 @@ export const googleProvider = new GoogleAuthProvider();
 export {
   onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword,
   createUserWithEmailAndPassword, signOut, updateProfile, sendPasswordResetEmail,
-  updatePassword, reauthenticateWithCredential, EmailAuthProvider,
-  doc, setDoc, getDoc, updateDoc, collection, getDocs,
+  updatePassword, reauthenticateWithCredential, reauthenticateWithPopup, EmailAuthProvider,
+  deleteUser,
+  doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs,
   query, orderBy, limit, addDoc, onSnapshot, serverTimestamp, where,
   arrayUnion, arrayRemove, increment
 };

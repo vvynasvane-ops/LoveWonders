@@ -159,13 +159,42 @@
       <p class="field-hint center" style="margin-top:8px;">artyourtaste@gmail.com</p>
     </div>
 
+    <div class="card danger-zone" style="max-width:480px; margin-top:18px;">
+      <h3 class="mt-0">Danger zone</h3>
+      <p class="muted" style="font-size:13px;">
+        Deleting your account removes your profile for good — you'll vanish from Discover, search, recommendations,
+        and everyone's Liked list right away, as if you'd never joined. Your sign-in is deleted too, so there's no
+        way back into this account. This can't be undone.
+      </p>
+
+      <div id="delete-google-note" style="display:none; margin-top:10px;">
+        <button type="button" id="delete-google-reauth-btn" class="btn subtle block">Confirm it's you with Google</button>
+        <p class="field-hint" id="delete-google-status"></p>
+      </div>
+
+      <div id="delete-email-form" style="display:none;">
+        <label>Current password</label>
+        <input id="delete-password" type="password" autocomplete="current-password" placeholder="Confirm your password">
+      </div>
+
+      <label>Type DELETE to confirm</label>
+      <input id="delete-confirm-text" type="text" autocomplete="off" placeholder="DELETE">
+
+      <p class="field-hint" id="delete-error" style="display:none; color:#ff9ab3;"></p>
+      <button type="button" id="delete-account-btn" class="btn danger block" style="margin-top:12px;" disabled>Delete my account</button>
+    </div>
+
     <p class="muted center" style="margin:22px 0 8px; font-size:12px;">
       <a href="about.html">About</a> · <a href="contact.html">Contact</a> · <a href="terms.html">Terms</a> · <a href="privacy.html">Privacy</a>
     </p>
   </div>
 
   <script type="module">
-    import { requireAuth, auth, signOut, db, doc, getDoc, sendPasswordResetEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "./firebase-init.js";
+    import {
+      requireAuth, auth, signOut, db, doc, getDoc, deleteDoc, sendPasswordResetEmail,
+      updatePassword, reauthenticateWithCredential, reauthenticateWithPopup, EmailAuthProvider,
+      deleteUser, googleProvider
+    } from "./firebase-init.js";
     import { initTheme } from "./theme.js";
     import { renderNav } from "./nav.js";
     import { startPresence } from "./presence.js";
@@ -185,6 +214,8 @@
       const hasPasswordProvider = user.providerData.some(p => p.providerId === "password");
       document.querySelector("#pw-google-note").style.display = hasPasswordProvider ? "none" : "block";
       document.querySelector("#pw-email-form").style.display = hasPasswordProvider ? "block" : "none";
+      document.querySelector("#delete-google-note").style.display = hasPasswordProvider ? "none" : "block";
+      document.querySelector("#delete-email-form").style.display = hasPasswordProvider ? "block" : "none";
     }).catch(err => {
       console.error("Settings load failed:", err);
       document.querySelector(".loader-page")?.remove();
@@ -241,6 +272,109 @@
       } catch (err) {
         console.error("Reset email failed:", err);
         showToast("Couldn't send the reset email — try again.", { type: "error" });
+      }
+    });
+
+    // ---- Danger zone: delete account ----
+    // Two independent gates have to clear before the button even enables:
+    // typing DELETE (catches an accidental tap) and proving it's really the
+    // account owner right now (a current password, or a fresh Google
+    // confirmation) — Firebase requires that "recent login" anyway before
+    // it will let deleteUser() through, so this satisfies both at once.
+    addPasswordToggle(document.querySelector("#delete-password"));
+    const deleteConfirmText = document.querySelector("#delete-confirm-text");
+    const deletePasswordInput = document.querySelector("#delete-password");
+    const deleteBtn = document.querySelector("#delete-account-btn");
+    const deleteError = document.querySelector("#delete-error");
+    const deleteGoogleBtn = document.querySelector("#delete-google-reauth-btn");
+    const deleteGoogleStatus = document.querySelector("#delete-google-status");
+    const showDeleteError = msg => { deleteError.textContent = msg; deleteError.style.display = "block"; };
+
+    let googleReauthed = false; // set once #delete-google-reauth-btn succeeds this page load
+    function refreshDeleteButton() {
+      const typedDelete = deleteConfirmText.value.trim().toUpperCase() === "DELETE";
+      const identityConfirmed = document.querySelector("#delete-email-form").style.display !== "none"
+        ? !!deletePasswordInput.value
+        : googleReauthed;
+      deleteBtn.disabled = !(typedDelete && identityConfirmed);
+    }
+    deleteConfirmText.addEventListener("input", refreshDeleteButton);
+    deletePasswordInput.addEventListener("input", refreshDeleteButton);
+
+    deleteGoogleBtn.addEventListener("click", async () => {
+      deleteGoogleBtn.disabled = true;
+      try {
+        await reauthenticateWithPopup(auth.currentUser, googleProvider);
+        googleReauthed = true;
+        deleteGoogleStatus.textContent = "Confirmed ✓";
+        deleteGoogleStatus.style.color = "";
+      } catch (err) {
+        console.error("Google reauth failed:", err);
+        deleteGoogleStatus.textContent = "Couldn't confirm with Google — try again.";
+        deleteGoogleStatus.style.color = "#ff9ab3";
+      } finally {
+        deleteGoogleBtn.disabled = false;
+        refreshDeleteButton();
+      }
+    });
+
+    deleteBtn.addEventListener("click", async () => {
+      deleteError.style.display = "none";
+      const sure = confirm("This is permanent. Your profile, photos, and matches disappear for everyone — right now. Delete your account?");
+      if (!sure) return;
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = "Deleting…";
+      const uid = auth.currentUser.uid;
+      try {
+        // Re-prove identity right before the irreversible step, even though
+        // the button already required it — the password/Google confirmation
+        // above could be stale by now (long pause, session quirks), and
+        // Firebase would reject deleteUser() on a stale one anyway.
+        if (document.querySelector("#delete-email-form").style.display !== "none") {
+          const cred = EmailAuthProvider.credential(auth.currentUser.email, deletePasswordInput.value);
+          await reauthenticateWithCredential(auth.currentUser, cred);
+        } else {
+          await reauthenticateWithPopup(auth.currentUser, googleProvider);
+        }
+
+        // Delete the Firestore profile FIRST, while still signed in (deleting
+        // it requires request.auth != null in the rules). Everyone else's
+        // Discover grid, recommendations, and Liked list are all built live
+        // from the `users` collection — the instant this doc is gone, this
+        // member vanishes from all of them everywhere, automatically, with
+        // no need to touch anyone else's liked-uid arrays. Old conversations
+        // stay in Firestore for whoever they messaged (deleting those would
+        // erase the *other* person's history without their consent), but
+        // messages.js now shows "Deleted account" instead of a live profile
+        // the moment this doc disappears.
+        await deleteDoc(doc(db, "users", uid));
+
+        // Delete the sign-in itself last, and only after the profile is
+        // gone — this is what makes the deletion permanent instead of
+        // just "profile currently missing." Doing it in this order also
+        // means if this step fails, the account is left in the same
+        // self-healing state the app already handles: profile.js quietly
+        // rebuilds a blank profile doc on next login rather than crashing.
+        await deleteUser(auth.currentUser);
+
+        // Best-effort local cleanup — nothing here holds anyone's data
+        // hostage if it fails, it just tidies up this device.
+        try {
+          localStorage.removeItem(`lw-presets-${uid}`);
+          localStorage.removeItem(`lw-notifications-${uid}`);
+          Object.keys(localStorage).forEach(k => { if (k.startsWith(`lw-lock:`) && k.endsWith(`:${uid}`)) localStorage.removeItem(k); });
+        } catch { /* storage unavailable — nothing to clean up */ }
+
+        window.location.href = "index.html?deleted=1";
+      } catch (err) {
+        console.error("Account deletion failed:", err);
+        const code = err.code || "";
+        if (code.includes("wrong-password") || code.includes("invalid-credential")) showDeleteError("That password isn't right.");
+        else if (code.includes("popup-closed") || code.includes("cancelled")) showDeleteError("Google confirmation was cancelled.");
+        else if (code.includes("requires-recent-login")) showDeleteError("Please confirm your identity again, then retry.");
+        else showDeleteError("Couldn't delete your account — check your connection and try again.");
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = "Delete my account";
       }
     });
   </script>
