@@ -1010,26 +1010,90 @@ textarea{ resize: vertical; min-height: 90px; }
 
 body{ padding-bottom: 0; }
 
+/* ---- hamburger toggle (opens #app-sidebar; small screens only) ---- */
+.menu-toggle{
+  display:none; /* switched on in the <=720px block below */
+  flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  width:40px; height:40px; padding:0; flex-shrink:0;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background: var(--bg-inset);
+  cursor:pointer;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.menu-toggle:hover{ border-color: var(--accent); }
+.menu-toggle span{
+  display:block; width:18px; height:2px;
+  background: var(--user-font-color);
+  border-radius:2px;
+  transition: transform .25s ease, opacity .2s ease;
+}
+/* morphs into an × while the sidebar is open */
+.menu-toggle[aria-expanded="true"] span:nth-child(1){ transform: translateY(6px) rotate(45deg); }
+.menu-toggle[aria-expanded="true"] span:nth-child(2){ opacity:0; }
+.menu-toggle[aria-expanded="true"] span:nth-child(3){ transform: translateY(-6px) rotate(-45deg); }
+
+/* ---- left sidebar (off-canvas nav — replaces the nav bar on small screens
+   so it stops permanently occupying viewport height; see nav.js:initSidebar
+   for the open/close wiring) ---- */
+.sidebar-overlay{
+  position:fixed; inset:0; z-index:250;
+  background: rgba(2,1,10,.6);
+  backdrop-filter: blur(2px);
+  opacity:0; pointer-events:none;
+  transition: opacity .25s ease;
+}
+.sidebar-overlay.open{ opacity:1; pointer-events:auto; }
+
+.app-sidebar{
+  position:fixed; top:0; left:0; bottom:0; z-index:260;
+  width: min(78vw, 280px);
+  height: 100dvh;
+  background: var(--bg-raised);
+  border-right: 1px solid var(--line);
+  box-shadow: 14px 0 40px var(--shadow);
+  transform: translateX(-100%);
+  transition: transform .28s ease;
+  display:flex; flex-direction:column;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 14px calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-y:auto;
+}
+.app-sidebar.open{ transform: translateX(0); }
+.sidebar-head{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--line);
+}
+.sidebar-head .brand{ font-size:15px; }
+.sidebar-close{
+  width:32px; height:32px; border-radius:50%; flex-shrink:0;
+  border:1px solid var(--line); background:var(--bg-inset);
+  color: var(--user-font-color); font-size:18px; line-height:1;
+  cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+}
+.sidebar-close:hover{ border-color: var(--accent); }
+/* nav.js paints the same ITEMS into here as .sidenav — reuse .appnav-item's
+   look, just stacked vertically and left-aligned instead of pill-in-a-row */
+.sidenav{ display:flex; flex-direction:column; gap:4px; }
+.sidenav .appnav-item{ flex-direction:row; justify-content:flex-start; gap:12px; padding:12px 14px; text-align:left; }
+.sidenav .appnav-label{ font-size:14px; }
+.sidenav .appnav-icon{ font-size:18px; }
+
+/* scroll-lock the page behind the open sidebar */
+body.sidebar-locked{ overflow:hidden; }
+
+@media (min-width: 721px){
+  /* off-canvas nav is a small-screen-only affordance; the horizontal
+     #nav-mount bar under the topbar is what's used above 720px */
+  .menu-toggle, .app-sidebar, .sidebar-overlay{ display:none; }
+}
+
 @media (max-width: 720px){
-  /* env(safe-area-inset-bottom) accounts for the gesture bar on modern
-     Android phones (this app installs as a standalone PWA per manifest.json)
-     so the fixed nav — and the content scrolled behind it — never sits
-     under, or gets covered by, the system navigation area. Needs
-     viewport-fit=cover on the <meta name="viewport"> tag to take effect. */
-  body{ padding-bottom: calc(var(--nav-h) + 14px + env(safe-area-inset-bottom, 0px)); }
-  #nav-mount{
-    position: fixed; left:10px; right:10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 80;
-    background: var(--bg-raised);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 -6px 26px var(--shadow), 0 0 0 1px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .12);
-  }
-  .appnav{ justify-content: space-between; padding: 6px 8px; height: var(--nav-h); }
-  .appnav-item{
-    flex-direction: column; gap:2px; flex:1;
-    padding: 6px 2px; border-radius: var(--radius-sm); text-align:center;
-  }
-  .appnav-label{ font-size:10px; }
+  .menu-toggle{ display:flex; }
+  /* Nav now lives in the sidebar instead of a bar pinned to the bottom (or
+     top) of the viewport, so it no longer needs to permanently reserve
+     screen height — this is what previously made the visible body area so
+     short on phones. */
+  #nav-mount{ display:none; }
   .topbar .btn.ghost.small{ padding: 7px 12px; }
   .toast-root{ left:12px; right:12px; top:78px; max-width:none; }
 }
