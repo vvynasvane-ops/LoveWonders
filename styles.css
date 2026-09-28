@@ -356,17 +356,32 @@ a{ color: var(--accent); text-decoration: none; }
   opacity: .6;
 }
 
-/* ---- top bar ---- */
+/* ---- top bar ----
+   Flush, full-bleed dock (top half) — same construction as HostelHive. The
+   bar's own box stays aligned to the page column so brand / bell / logout
+   line up with the content below, while its glass background (::before)
+   runs edge to edge of the screen. No border and no margin: the nav row
+   (#nav-mount) butts directly against it and the glowing hairline lives on
+   the bottom of the whole dock. */
 .topbar{
   display:flex; align-items:center; justify-content:space-between;
   gap: 14px;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--line);
+  min-height: calc(64px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 0 0;
+  margin: 0;
+  border: none;
   position: sticky; top: 0; z-index: 200;
-  background: hsl(var(--gold-h) 40% 6% / .82);
-  backdrop-filter: blur(10px);
+  isolation: isolate;
 }
-[data-mode="light"] .topbar{ background: hsl(0 0% 100% / .86); }
+.topbar::before{
+  content:""; position:absolute; top:0; bottom:0;
+  left: calc(50% - 50vw); width: 100vw; z-index:-1;
+  background: linear-gradient(180deg, hsl(var(--gold-h) 45% 9% / .94), hsl(var(--gold-h) 40% 6% / .9));
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+[data-mode="light"] .topbar::before{
+  background: linear-gradient(180deg, hsl(0 0% 100% / .94), hsl(var(--gold-h) 40% 97% / .9));
+}
 .brand{
   font-family: var(--font-display);
   font-size: 20px;
@@ -865,7 +880,7 @@ textarea{ resize: vertical; min-height: 90px; }
    Pushed below the topbar (~76px tall) so a toast never overlaps the Log out
    button / notification bell that live in the same top-right corner. ---- */
 .toast-root{
-  position: fixed; top: 96px; right: 20px; z-index: 999;
+  position: fixed; top: calc(var(--topbar-h, 64px) + var(--appnav-h) + 14px); right: 20px; z-index: 999;
   display:flex; flex-direction:column; gap:10px;
   max-width: min(360px, calc(100vw - 32px));
   pointer-events: none;
@@ -969,36 +984,111 @@ textarea{ resize: vertical; min-height: 90px; }
 .notif-item-time{ font-size:11px; color: var(--text-muted); }
 .notif-empty{ padding: 24px 16px; text-align:center; font-size:13px; color: var(--text-muted); margin:0; }
 
-/* ---- shared app nav (renders via nav.js into #nav-mount) ---- */
+/* ---- shared app nav (renders via nav.js into #nav-mount) ----
+   Ported from HostelHive's dock: the bottom half of a flush, full-bleed bar.
+   Desktop: a sticky row directly under the top bar, full-bleed glass, tabs
+   sharing the row equally. Mobile: a bar pinned edge-to-edge to the bottom
+   of the screen (no floating margins), padded for the gesture area. The
+   active tab gets a glowing "beam" on its inner edge (bottom on desktop, top
+   on mobile).
+   LoveWonders flavour: the beam and hairline are violet→cyan plasma that
+   slowly flows, the active icon sits in a soft plasma halo and beats like a
+   heart. Styling only — nav.js is untouched. The old slide-in sidebar and
+   hamburger are retired (hidden below), since the bottom dock replaces them. */
+:root{ --appnav-h: 52px; }
+html, body{ overflow-x: clip; }   /* full-bleed uses 100vw; `clip` keeps sticky working */
+
+@keyframes dock-flow{ from{ background-position: 0% 0; } to{ background-position: 200% 0; } }
+@keyframes nav-heart{
+  0%, 100%{ transform: translateY(-1px) scale(1.12); }
+  14%{ transform: translateY(-1px) scale(1.26); }
+  28%{ transform: translateY(-1px) scale(1.12); }
+  42%{ transform: translateY(-1px) scale(1.2); }
+  70%{ transform: translateY(-1px) scale(1.12); }
+}
+@keyframes halo-breathe{
+  0%, 100%{ opacity:.55; transform: scale(.9); }
+  50%{ opacity:1; transform: scale(1.15); }
+}
+
 #nav-mount{
   position: sticky; top: var(--topbar-h, 64px); z-index: 190;
-  background: hsl(var(--gold-h) 40% 6% / .82);
-  backdrop-filter: blur(10px);
-  margin: 0 -24px; padding: 0 24px;
+  margin: 0; padding: 0;
+  isolation: isolate;
 }
-[data-mode="light"] #nav-mount{ background: hsl(0 0% 100% / .86); }
+#nav-mount::before{                       /* full-bleed glass */
+  content:""; position:absolute; top:0; bottom:0;
+  left: calc(50% - 50vw); width:100vw; z-index:-1;
+  background: hsl(var(--gold-h) 40% 6% / .9);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+[data-mode="light"] #nav-mount::before{ background: hsl(0 0% 100% / .9); }
+#nav-mount::after{                        /* the dock's glowing, flowing hairline */
+  content:""; position:absolute; bottom:0;
+  left: calc(50% - 50vw); width:100vw; height:1px; pointer-events:none;
+  background: linear-gradient(90deg, transparent,
+    hsl(var(--teal-h) var(--teal-s) var(--teal-l) / .75) 12%, var(--accent) 25%,
+    hsl(var(--teal-h) var(--teal-s) var(--teal-l) / .75) 38%, transparent 50%,
+    hsl(var(--teal-h) var(--teal-s) var(--teal-l) / .75) 62%, var(--accent) 75%,
+    hsl(var(--teal-h) var(--teal-s) var(--teal-l) / .75) 88%, transparent);
+  background-size: 200% 100%;
+  animation: dock-flow 9s linear infinite;
+  box-shadow: 0 0 14px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .35);
+}
 .appnav{
-  display:flex; gap:6px; align-items:center;
-  padding: 10px 0;
+  display:flex; align-items:stretch; gap:0;
+  height: var(--appnav-h); padding:0; margin:0;
 }
 .appnav-item{
-  display:flex; align-items:center; gap:7px;
-  padding: 9px 15px;
-  border-radius: var(--radius-pill);
+  position:relative;
+  flex: 1 1 0; min-width:0;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  padding: 0 10px;
+  border-radius: 0;
   color: var(--text-muted);
-  font-size: 13px;
-  font-weight:600;
-  transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+  font-size: 13px; font-weight:600; white-space:nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .25s ease, color .2s ease, transform .15s ease;
 }
-.appnav-item:hover{ color: var(--user-font-color); }
-.appnav-item.active{ background: var(--bg-inset); color: var(--accent); box-shadow: 0 0 0 1px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .3); }
-.appnav-icon{ font-size:16px; line-height:1; }
-.appnav-icon-wrap{ position:relative; display:inline-flex; }
+.appnav-item::after{                      /* the beam */
+  content:""; position:absolute; left:50%; bottom:0;
+  width:0; height:2px; transform: translateX(-50%);
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(90deg, var(--teal), var(--accent), var(--teal));
+  background-size: 200% 100%;
+  animation: dock-flow 4s linear infinite;
+  box-shadow: 0 0 12px 1px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .8);
+  transition: width .3s cubic-bezier(.2,.8,.2,1);
+}
+.appnav-item:hover{
+  color: var(--user-font-color);
+  background: linear-gradient(0deg, hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .07), transparent 80%);
+}
+.appnav-item:hover::after{ width: 32%; }
+.appnav-item.active{
+  color: var(--accent);
+  background: linear-gradient(0deg, hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .16), transparent 85%);
+}
+.appnav-item.active::after{ width: 70%; }
+.appnav-item:focus-visible{ outline: 2px solid var(--accent); outline-offset: -3px; }
+.appnav-icon{ font-size:16px; line-height:1; position:relative; z-index:1; }
+.appnav-icon-wrap{ position:relative; display:inline-flex; transition: transform .25s ease; }
+.appnav-icon-wrap::before{                /* plasma halo behind the active icon */
+  content:""; position:absolute; inset:-9px; border-radius:50%; z-index:0; pointer-events:none;
+  background: radial-gradient(circle,
+    hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .38),
+    hsl(var(--teal-h) var(--teal-s) var(--teal-l) / .14) 55%, transparent 72%);
+  opacity:0; transition: opacity .3s ease;
+}
+.appnav-item.active .appnav-icon-wrap{ transform: translateY(-1px) scale(1.12); animation: nav-heart 3.2s ease-in-out infinite; }
+.appnav-item.active .appnav-icon-wrap::before{ opacity:1; animation: halo-breathe 3.2s ease-in-out infinite; }
+.appnav-item.active .appnav-icon{ text-shadow: 0 0 10px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .75); }
+.appnav-item.active .appnav-label{ font-weight:700; letter-spacing:.02em; }
 /* Live "new messages" ping on the Messages tab — driven by a real-time
    Firestore listener (see notifications.js), so it's never a one-time check:
    it updates the instant a new message lands, from whichever page is open. */
 .appnav-badge{
-  position:absolute; top:-6px; right:-8px;
+  position:absolute; top:-6px; right:-8px; z-index:2;
   min-width:15px; height:15px; padding:0 3px;
   border-radius: var(--radius-pill);
   background: linear-gradient(135deg, var(--accent), var(--teal));
@@ -1010,92 +1100,58 @@ textarea{ resize: vertical; min-height: 90px; }
 
 body{ padding-bottom: 0; }
 
-/* ---- hamburger toggle (opens #app-sidebar; small screens only) ---- */
-.menu-toggle{
-  display:none; /* switched on in the <=720px block below */
-  flex-direction:column; align-items:center; justify-content:center; gap:4px;
-  width:40px; height:40px; padding:0; flex-shrink:0;
-  border-radius:50%;
-  border:1px solid var(--line);
-  background: var(--bg-inset);
-  cursor:pointer;
-  transition: border-color .2s ease, box-shadow .2s ease;
-}
-.menu-toggle:hover{ border-color: var(--accent); }
-.menu-toggle span{
-  display:block; width:18px; height:2px;
-  background: var(--user-font-color);
-  border-radius:2px;
-  transition: transform .25s ease, opacity .2s ease;
-}
-/* morphs into an × while the sidebar is open */
-.menu-toggle[aria-expanded="true"] span:nth-child(1){ transform: translateY(6px) rotate(45deg); }
-.menu-toggle[aria-expanded="true"] span:nth-child(2){ opacity:0; }
-.menu-toggle[aria-expanded="true"] span:nth-child(3){ transform: translateY(-6px) rotate(-45deg); }
-
-/* ---- left sidebar (off-canvas nav — replaces the nav bar on small screens
-   so it stops permanently occupying viewport height; see nav.js:initSidebar
-   for the open/close wiring) ---- */
-.sidebar-overlay{
-  position:fixed; inset:0; z-index:250;
-  background: rgba(2,1,10,.6);
-  backdrop-filter: blur(2px);
-  opacity:0; pointer-events:none;
-  transition: opacity .25s ease;
-}
-.sidebar-overlay.open{ opacity:1; pointer-events:auto; }
-
-.app-sidebar{
-  position:fixed; top:0; left:0; bottom:0; z-index:260;
-  width: min(78vw, 280px);
-  height: 100dvh;
-  background: var(--bg-raised);
-  border-right: 1px solid var(--line);
-  box-shadow: 14px 0 40px var(--shadow);
-  transform: translateX(-100%);
-  transition: transform .28s ease;
-  display:flex; flex-direction:column;
-  padding: calc(16px + env(safe-area-inset-top, 0px)) 14px calc(16px + env(safe-area-inset-bottom, 0px));
-  overflow-y:auto;
-}
-.app-sidebar.open{ transform: translateX(0); }
-.sidebar-head{
-  display:flex; align-items:center; justify-content:space-between;
-  margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--line);
-}
-.sidebar-head .brand{ font-size:15px; }
-.sidebar-close{
-  width:32px; height:32px; border-radius:50%; flex-shrink:0;
-  border:1px solid var(--line); background:var(--bg-inset);
-  color: var(--user-font-color); font-size:18px; line-height:1;
-  cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
-}
-.sidebar-close:hover{ border-color: var(--accent); }
-/* nav.js paints the same ITEMS into here as .sidenav — reuse .appnav-item's
-   look, just stacked vertically and left-aligned instead of pill-in-a-row */
-.sidenav{ display:flex; flex-direction:column; gap:4px; }
-.sidenav .appnav-item{ flex-direction:row; justify-content:flex-start; gap:12px; padding:12px 14px; text-align:left; }
-.sidenav .appnav-label{ font-size:14px; }
-.sidenav .appnav-icon{ font-size:18px; }
-
-/* scroll-lock the page behind the open sidebar */
-body.sidebar-locked{ overflow:hidden; }
-
-@media (min-width: 721px){
-  /* off-canvas nav is a small-screen-only affordance; the horizontal
-     #nav-mount bar under the topbar is what's used above 720px */
-  .menu-toggle, .app-sidebar, .sidebar-overlay{ display:none; }
-}
+/* ---- retired: hamburger + off-canvas sidebar ----
+   nav.js still paints/wires them, but the dock above replaces them at every
+   width, so they stay out of sight (and out of the tab order). */
+.menu-toggle, .app-sidebar, .sidebar-overlay{ display:none !important; }
 
 @media (max-width: 720px){
-  .menu-toggle{ display:flex; }
-  /* Nav now lives in the sidebar instead of a bar pinned to the bottom (or
-     top) of the viewport, so it no longer needs to permanently reserve
-     screen height — this is what previously made the visible body area so
-     short on phones. */
-  #nav-mount{ display:none; }
+  /* env(safe-area-inset-bottom) accounts for the gesture bar on modern
+     Android phones (this app installs as a standalone PWA per manifest.json)
+     so the bar — and the content scrolled behind it — never sits under the
+     system navigation area. Needs viewport-fit=cover on the viewport meta. */
+  body{ padding-bottom: calc(var(--nav-h) + 8px + env(safe-area-inset-bottom, 0px)); }
+
+  /* topbar is now the top dock: give it its own flowing hairline */
+  .topbar::after{
+    content:""; position:absolute; bottom:0;
+    left: calc(50% - 50vw); width:100vw; height:1px; pointer-events:none;
+    background: linear-gradient(90deg, transparent, var(--teal) 12%, var(--accent) 25%, var(--teal) 38%, transparent 50%,
+      var(--teal) 62%, var(--accent) 75%, var(--teal) 88%, transparent);
+    background-size: 200% 100%;
+    animation: dock-flow 9s linear infinite;
+    box-shadow: 0 0 12px hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .35);
+  }
+
+  /* bottom bar: flush to the screen edges, no margin, no radius */
+  #nav-mount{
+    position: fixed; top:auto; left:0; right:0; bottom:0; z-index:80;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: hsl(var(--gold-h) 40% 6% / .92);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 -10px 28px var(--shadow);
+  }
+  [data-mode="light"] #nav-mount{ background: hsl(0 0% 100% / .92); }
+  #nav-mount::before{ display:none; }
+  #nav-mount::after{ top:0; bottom:auto; left:0; width:100%; }   /* hairline on the TOP edge */
+  .appnav{ height: var(--nav-h); }
+  .appnav-item{ flex-direction:column; gap:3px; padding: 6px 2px; text-align:center;
+    background: transparent; }
+  .appnav-item:active{ transform: scale(.94); }
+  .appnav-item::after{ top:0; bottom:auto; border-radius: 0 0 2px 2px; }   /* beam hangs from the top */
+  .appnav-item:hover, .appnav-item.active{
+    background: linear-gradient(180deg, hsl(var(--gold-h) var(--gold-s) var(--gold-l) / .14), transparent 85%);
+  }
+  .appnav-item:hover:not(.active){ background: transparent; }
+  .appnav-icon{ font-size:19px; }
+  .appnav-label{ font-size:10px; }
   .topbar .btn.ghost.small{ padding: 7px 12px; }
-  .toast-root{ left:12px; right:12px; top:78px; max-width:none; }
+  .toast-root{ left:12px; right:12px; top: calc(var(--topbar-h, 64px) + 12px); max-width:none; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  #nav-mount::after, .topbar::after, .appnav-item::after,
+  .appnav-item.active .appnav-icon-wrap, .appnav-item.active .appnav-icon-wrap::before{ animation: none !important; }
 }
 
 /* ---- search & filters (Discover / Home) ---- */
