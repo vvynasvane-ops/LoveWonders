@@ -1317,3 +1317,8 @@ body{ padding-bottom: 0; }
   .legal-wrap{ margin-top: 28px; }
   .contact-grid, .about-values{ grid-template-columns: 1fr 1fr; }
 }
+
+/* ---- PIN boxes: masked like a password but not type=password, so browsers never offer saved logins ---- */
+.chat-pin-input.masked-pin{ -webkit-text-security: disc; text-security: disc; letter-spacing: .35em; }
+/* keep browser autofill from repainting fields with its yellow/blue wash */
+input:-webkit-autofill, textarea:-webkit-autofill{ -webkit-box-shadow: 0 0 0 40px var(--bg-card, #0d0b1c) inset !important; -webkit-text-fill-color: inherit !important; caret-color: currentColor; }

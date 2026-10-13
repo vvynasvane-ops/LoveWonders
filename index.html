@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <!-- Applies saved appearance (font, color, background) before first paint — must stay first, as a classic (non-module) script, to avoid a flash of default styling. -->
 <script src="appearance-core.js"></script>
+<script src="autofill-guard.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Love Wonders</title>
 <link rel="icon" href="favicon.ico?v=2" sizes="any">
@@ -50,14 +51,14 @@
         <form id="auth-form">
           <div id="name-field" style="display:none;">
             <label for="name">Display name</label>
-            <input id="name" type="text" placeholder="How others will see you" autocomplete="name">
+            <input id="name" type="text" placeholder="How others will see you" autocomplete="off" data-autofill-wipe>
           </div>
 
           <label for="email">Email</label>
-          <input id="email" type="email" required autocomplete="email">
+          <input id="email" type="email" required autocomplete="email" data-allow-autofill>
 
           <label for="password">Password</label>
-          <input id="password" type="password" required autocomplete="current-password" minlength="6">
+          <input id="password" type="password" required autocomplete="current-password" minlength="6" data-allow-autofill>
 
           <p id="forgot-row" style="text-align:right; margin:8px 0 0;">
             <a href="#" id="forgot-link" style="font-size:12px;">Forgot password?</a>

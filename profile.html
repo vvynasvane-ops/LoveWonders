@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <!-- Applies saved appearance (font, color, background) before first paint — must stay first, as a classic (non-module) script, to avoid a flash of default styling. -->
 <script src="appearance-core.js"></script>
+<script src="autofill-guard.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your profile — Love Wonders</title>
 <link rel="icon" href="favicon.ico?v=2" sizes="any">
@@ -71,9 +72,9 @@
           </div>
 
           <label for="name">Name</label>
-          <input id="name" type="text">
+          <input id="name" type="text" autocomplete="off">
           <label for="bio">Biography</label>
-          <textarea id="bio" placeholder="A few honest lines about you."></textarea>
+          <textarea id="bio" placeholder="A few honest lines about you." autocomplete="off"></textarea>
           <button id="save-profile" class="btn block" style="margin-top:20px;">Save profile</button>
         </div>
 
@@ -111,19 +112,19 @@
             </div>
             <div>
               <label for="country">Country</label>
-              <input id="country" type="text" placeholder="e.g. Nigeria">
+              <input id="country" type="text" placeholder="e.g. Nigeria" autocomplete="off">
             </div>
             <div>
               <label for="city">City</label>
-              <input id="city" type="text" placeholder="e.g. Lagos">
+              <input id="city" type="text" placeholder="e.g. Lagos" autocomplete="off">
             </div>
             <div>
               <label for="ethnicity">Ethnicity</label>
-              <input id="ethnicity" type="text" placeholder="e.g. Yoruba">
+              <input id="ethnicity" type="text" placeholder="e.g. Yoruba" autocomplete="off">
             </div>
             <div>
               <label for="nationality">Nationality</label>
-              <input id="nationality" type="text" placeholder="e.g. Nigerian">
+              <input id="nationality" type="text" placeholder="e.g. Nigerian" autocomplete="off">
             </div>
             <div>
               <label for="relationship-intent">Looking for</label>
@@ -148,19 +149,19 @@
             </div>
             <div>
               <label for="education">Education</label>
-              <input id="education" type="text" placeholder="e.g. University of Lagos">
+              <input id="education" type="text" placeholder="e.g. University of Lagos" autocomplete="off">
             </div>
             <div>
               <label for="occupation">Occupation</label>
-              <input id="occupation" type="text" placeholder="e.g. Software developer">
+              <input id="occupation" type="text" placeholder="e.g. Software developer" autocomplete="off">
             </div>
             <div>
               <label for="languages">Languages spoken</label>
-              <input id="languages" type="text" placeholder="e.g. English, Yoruba, French">
+              <input id="languages" type="text" placeholder="e.g. English, Yoruba, French" autocomplete="off">
             </div>
           </div>
           <label for="interests" style="margin-top:16px;">Interests &amp; tags</label>
-          <input id="interests" type="text" placeholder="e.g. music, hiking, faith, cooking">
+          <input id="interests" type="text" placeholder="e.g. music, hiking, faith, cooking" autocomplete="off">
           <div class="field-hint">Separate with commas — shown as tags on your profile.</div>
 
           <label class="consent-row" for="show-online-status" style="margin-top:16px;">
@@ -193,15 +194,15 @@
             </div>
             <div>
               <label for="pref-country">Preferred country</label>
-              <input id="pref-country" type="text" placeholder="Any">
+              <input id="pref-country" type="text" placeholder="Any" autocomplete="off">
             </div>
             <div>
               <label for="pref-ethnicity">Preferred ethnicity</label>
-              <input id="pref-ethnicity" type="text" placeholder="Any">
+              <input id="pref-ethnicity" type="text" placeholder="Any" autocomplete="off">
             </div>
             <div>
               <label for="pref-nationality">Preferred nationality</label>
-              <input id="pref-nationality" type="text" placeholder="Any">
+              <input id="pref-nationality" type="text" placeholder="Any" autocomplete="off">
             </div>
           </div>
           <button id="save-taste" class="btn subtle block" style="margin-top:16px;">Save taste</button>
@@ -211,13 +212,13 @@
           <h3 class="mt-0">Private — unlocked with your code</h3>
 
           <label>Instagram</label>
-          <input type="text" data-social="instagram" placeholder="@handle or link">
+          <input type="text" data-social="instagram" placeholder="@handle or link" autocomplete="off">
           <label>TikTok</label>
-          <input type="text" data-social="tiktok" placeholder="@handle or link">
+          <input type="text" data-social="tiktok" placeholder="@handle or link" autocomplete="off">
           <label>Snapchat</label>
-          <input type="text" data-social="snapchat" placeholder="@handle">
+          <input type="text" data-social="snapchat" placeholder="@handle" autocomplete="off">
           <label>WhatsApp</label>
-          <input type="text" data-social="whatsapp" placeholder="number or link">
+          <input type="text" data-social="whatsapp" placeholder="number or link" autocomplete="off">
 
           <label>Extra photos</label>
           <div class="upload-btn-wrap btn subtle small">

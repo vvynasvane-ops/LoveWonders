@@ -84,7 +84,7 @@ function showPinModal(mountEl, { title, body, confirmLabel = "Continue" }) {
       <div class="chat-modal">
         <div class="chat-modal-title">${escapeHtml(title)}</div>
         <div class="chat-modal-body">${escapeHtml(body)}</div>
-        <input type="password" inputmode="numeric" maxlength="8" class="chat-pin-input" placeholder="PIN (4\u20138 digits)">
+        <input type="password" autocomplete="new-password" inputmode="numeric" maxlength="8" class="chat-pin-input" placeholder="PIN (4\u20138 digits)">
         <div class="chat-modal-error" style="display:none;">Wrong PIN \u2014 try again.</div>
         <div class="chat-modal-actions">
           <button type="button" class="btn ghost small" data-act="cancel">Cancel</button>
@@ -155,14 +155,14 @@ export function openChat(mountEl, myUid, otherUid, otherUser = {}) {
       <div id="chat-lock-screen" class="chat-lock-screen" style="display:none;">
         <div class="chat-lock-icon">&#128274;</div>
         <div class="chat-lock-title">This chat is locked</div>
-        <input type="password" inputmode="numeric" maxlength="8" class="chat-pin-input" id="chat-lock-input" placeholder="Enter PIN">
+        <input type="password" autocomplete="new-password" inputmode="numeric" maxlength="8" class="chat-pin-input" id="chat-lock-input" placeholder="Enter PIN">
         <div class="chat-modal-error" id="chat-lock-error" style="display:none;">Wrong PIN — try again.</div>
         <button type="button" class="btn small" id="chat-lock-unlock-btn">Unlock</button>
       </div>
       <div id="chat-log" class="chat-log"></div>
       <div id="chat-send-status" class="chat-send-status"></div>
       <div class="chat-input-row">
-        <textarea id="chat-text" rows="1" placeholder="${otherUser.deleted ? "This account has been deleted" : `Message ${escapeHtml(otherName)}…`}" ${otherUser.deleted ? "disabled" : ""}></textarea>
+        <textarea id="chat-text" autocomplete="off" rows="1" placeholder="${otherUser.deleted ? "This account has been deleted" : `Message ${escapeHtml(otherName)}…`}" ${otherUser.deleted ? "disabled" : ""}></textarea>
         <button id="chat-send" class="chat-send-btn" type="button" aria-label="Send" disabled>&#10148;</button>
       </div>
     </div>`;

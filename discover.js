@@ -281,7 +281,7 @@ function openDetail(uid, p) {
         <div id="lock-panel" class="lock-panel">
           <p><span class="lock-icon">&#9679;</span> <strong>Locked.</strong> Enter their code to see social links and more photos.</p>
           <div style="display:flex; gap:10px; margin-top:10px;">
-            <input id="code-input" type="text" placeholder="9-character code" maxlength="9" style="flex:1;">
+            <input id="code-input" type="text" autocomplete="off" data-autofill-wipe placeholder="9-character code" maxlength="9" style="flex:1;">
             <button id="unlock-btn" class="btn subtle">Unlock</button>
           </div>
           <p id="unlock-error" style="color:#d98a71; font-size:12px; min-height:16px; margin-top:6px;"></p>
