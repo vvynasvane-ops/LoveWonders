@@ -118,8 +118,8 @@ handled separately — see below.)
   `lastAt` order) the first time the inbox query runs — just follow the
   link it gives you in the console.
 - **Theme**: colors are sampled straight from `favicon.jpg` — a warm
-  coral accent (H22 S85% L56%) from the heart, a deep teal background
-  from the water, gold/black by default, RGB sliders to retune the
+  coral accent (H22 S85% L56%) from the glowing LW lettering, a deep teal
+  background from the water, gold/black by default, RGB sliders to retune the
   accent, and a light/dark mode toggle — all saved to `localStorage` and
   applied on every page via `theme.js`.
 
@@ -163,24 +163,23 @@ Firebase Auth requires the page be served over `http://localhost` or
 ## 7. App icon
 All app icons — browser tab favicon, iOS/Android home-screen icon, and the
 PWA install icon on desktop and mobile — are generated from `favicon.jpg`
-(the heart-splash photo) rather than linking that raw file directly, since
-it's a tall 694×1138 photo, not a square icon; forcing a non-square image
+(the glowing **LW** monogram splashing out of dark water, with petals and
+a rippled reflection) rather than linking that raw file directly, since
+it's a tall 694×1138 image, not a square icon; forcing a non-square image
 into an icon slot gets stretched or oddly cropped differently by every OS.
-Generated once from the source photo via Pillow (see the script history in
-this project if you ever need to regenerate it after swapping the photo):
-- A square crop from the top of the photo (full splash + heart, since the
-  plain lower reflection wasn't adding anything at icon size).
-- Plain full-bleed PNGs at 16/32/48/96/192/512px plus a 180px
-  `apple-touch-icon.png`, and a multi-size `favicon.ico` for older browsers.
+Generated with Pillow from the source image:
+- A 694×694 square crop centred on the lettering (splash tips, LW and the
+  start of the reflection all stay in frame) for the 180/192/512px icons.
+- A tighter 600×600 crop for the smallest sizes (16/32/48/96px and the
+  multi-size `favicon.ico`) so the letters stay readable at tab size.
 - Two **maskable** PWA icons (192/512px) — Android/desktop launchers apply
-  their own mask shape (circle, squircle, rounded square) and clip anything
-  outside a centered safe zone, so these scale the art down onto a padded
-  canvas in a teal sampled from the photo itself, instead of risking the
-  heart or splash tips getting cut off.
+  their own mask shape and clip outside a centred safe zone, so the art is
+  scaled to 74%, rounded, and floated over a darkened, blurred extension of
+  the same photo instead of risking the letters or splash being cut off.
 `manifest.json` lists all five PWA sizes with the correct `purpose` per
 icon (`any` vs `maskable`), and every page's `<head>` links the favicon set
 and `apple-touch-icon.png` directly — swap in `favicon.jpg` and re-run the
-same crop/resize steps if the source photo ever changes.
+same crop/resize steps if the source image ever changes.
 
 ## 8. Still worth adding later
 - No *background* push for new messages or new-member taste matches —
